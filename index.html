@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <title>Denuncia Ciudadana</title>
+</head>
+
+<body>
+    <main>
+        <form id="reporte-form">
+            <div>
+                <label for="reporte-foto">Foto:</label>
+                <input type="file" id="reporte-foto" accept="image/*">
+            </div>
+            <div>
+                <label for="reporte-ubicacion">Ubicación:</label>
+                <input type="text" id="reporte-ubicacion" placeholder="Ubicación">
+            </div>
+            <div>
+                <label for="reporte-categoria">Categoría:</label>
+                <select id="reporte-categoria">
+                    <option value="">Selecciona...</option>
+                    <option value="bache">Bache</option>
+                    <option value="alumbrado">Alumbrado</option>
+                    <option value="basura">Basura</option>
+                    <option value="fuga-agua">Fuga de agua</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+            <p id="error-msg"></p>
+            <button id="btn-enviar" type="submit">Enviar</button>
+        </form>
+    </main>
+    <script src="app.js"></script>
+</body>
+
+</html>
