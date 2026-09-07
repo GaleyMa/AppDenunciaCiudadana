@@ -1,53 +1,266 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #f0f0f0;
+/* style.css — mobile-first, una sola columna. Sin frameworks. */
+
+:root {
+    --verde: #0f5132;
+    --verde-claro: #157347;
+    --arena: #f4f1ea;
+    --texto: #1f2328;
+    --texto-suave: #5b6470;
+    --borde: #d8d4cb;
+    --error: #b00020;
+    --exito: #0a7d33;
 }
 
-main {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
+* {
+    box-sizing: border-box;
 }
+
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0 0 30px;
+    color: var(--texto);
+    background-color: var(--arena);
+    line-height: 1.5;
+}
+
+/* --- Encabezado --- */
+
+.encabezado {
+    background-color: var(--verde);
+    color: #fff;
+    padding: 22px 20px 18px;
+    text-align: center;
+}
+
+.encabezado h1 {
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1.25;
+}
+
+/* "Mexicali, B.C." en su propio renglón, más discreto que el título. */
+.encabezado h1 span {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
+.lema {
+    margin: 10px 0 0;
+    font-style: italic;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* --- Contenido --- */
+
+main {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 18px 14px 0;
+}
+
+.tarjeta {
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+}
+
+.tarjeta h2 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    color: var(--verde);
+}
+
+.intro p {
+    margin: 0 0 12px;
+    font-size: 0.92rem;
+    color: var(--texto-suave);
+}
+
+.puntos {
+    margin: 0 0 12px;
+    padding-left: 18px;
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+}
+
+.puntos li {
+    margin-bottom: 5px;
+}
+
+.puntos strong {
+    color: var(--texto);
+}
+
+.aviso {
+    background-color: #fdf3f4;
+    border-left: 3px solid var(--error);
+    border-radius: 0 6px 6px 0;
+    padding: 9px 12px;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+/* --- Formulario --- */
 
 form {
     display: flex;
     flex-direction: column;
 }
 
-form div {
-    margin-bottom: 15px;
+.campo {
+    margin-bottom: 16px;
 }
 
 label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.campo small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
 }
 
 input,
 select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    width: 100%;
+    padding: 11px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--texto);
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+}
+
+input[type="file"] {
+    padding: 9px;
+    font-size: 0.85rem;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+    outline: 2px solid var(--verde-claro);
+    outline-offset: 1px;
 }
 
 button {
-    padding: 10px;
-    background-color: #000000;
+    padding: 13px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
     color: #fff;
+    background-color: var(--verde);
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
 }
 
 button:hover {
-    background-color: #333;
+    background-color: var(--verde-claro);
+}
+
+button:disabled {
+    background-color: #9aa1a8;
+    cursor: not-allowed;
+}
+
+/* --- Autocompletado de colonias --- */
+
+/* El contenedor es la referencia de posición del desplegable. */
+.autocompletar {
+    position: relative;
+}
+
+.sugerencias {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 216px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.sugerencias li {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+/* .activa la pone el JS al navegar con las flechas del teclado. */
+.sugerencias li:hover,
+.sugerencias li.activa {
+    background-color: #e8f3ec;
+    color: var(--verde);
+}
+
+/* --- Mensajes --- */
+
+.msg-error,
+.msg-exito {
+    margin: 0 0 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.msg-error:empty,
+.msg-exito:empty {
+    margin: 0;
+}
+
+.msg-error {
+    color: var(--error);
+}
+
+.msg-exito {
+    color: var(--exito);
+}
+
+/* --- Pie --- */
+
+footer {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 0 14px;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+footer p {
+    margin: 0;
+}
+
+/* En pantallas grandes solo se ensancha un poco: sigue siendo una columna. */
+@media (min-width: 620px) {
+    main,
+    footer {
+        max-width: 540px;
+    }
+
+    .encabezado h1 {
+        font-size: 1.7rem;
+    }
 }
