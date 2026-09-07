@@ -227,3 +227,136 @@ Antes de cada prueba: borrar la base en DevTools (Application, IndexedDB , denun
 
 **JUSTIFICACIÓN:**  Al cambiar de Un agente local a uno en la nube, se aprecio no solo una mejora en tiempo de respuesta, si no en la calidad de los resultados. La explicación que solicito antes de aplicar cambios son precisamente para poder identificar hasta que punto sigue mis instrucciones, en donde comienza a separarse del concepto principal de la aplicación, En este caso no sentí divergencia alguna. El flujo de trabajo fue mejor, entendi mas y sentí que el avance fué bueno.
 
+
+
+---
+
+# BITÁCORA DE IMPLEMENTACIÓN CON IA — SESIÓN 3
+
+Herramienta: Claude Code (Claude Opus 5) dentro de VS Code
+Fecha: 7 de septiembre de 2026
+Historias implementadas: HT-03 — ValidacionPanel y HT-04 — GestorValidacion
+(Incremento 2 completo), más la corrección del service worker.
+
+> Nota: los prompts de esta sesión vienen **agrupados en dos bloques** por
+> claridad. Cada bloque resume varios mensajes reales del intercambio; el
+> contenido y los resultados sí corresponden a lo que ocurrió.
+
+
+## PROMPTS UTILIZADOS
+
+### Prompt 1 — Incremento 2: panel de validación y gestor
+
+"Pasemos al Incremento 2 con ValidacionPanel y GestorValidacion. El panel lista
+los reportes pendientes leyendo por estado desde IndexedDB y muestra por cada
+uno la miniatura de la foto, la ubicación, la categoría y la fecha, nunca datos
+del autor. El acceso es por URL secreta con un token en el hash: si el token
+falta o es incorrecto, no se renderiza el panel ni se revela que existe. El
+gestor permite validar, descartar con motivo (duplicado / sin evidencia / spam)
+y fusionar guardando la referencia al id del reporte original."
+
+**Resultado:** Separó las dos capas como pedía el proyecto: `GestorValidacion.js`
+con la lógica (sin tocar el DOM) y `ValidacionPanel.js` con la interfaz (sin
+reglas de negocio). El token quedó en `src/config.js` con el comentario de que
+**esto no es seguridad real**, porque viaja en el código del cliente.
+
+Decisiones que tomó y explicó:
+
+- Para fusionar puso un `<select>` con los otros reportes (categoría, colonia,
+  fecha e id corto) en vez de un campo para teclear el UUID a mano.
+- Agregó tres reglas que yo no había pedido: no fusionar un reporte consigo
+  mismo, no fusionar contra un id inexistente y no fusionar contra un reporte ya
+  descartado o fusionado. El argumento fue evitar cadenas A→B→C que romperían el
+  conteo del tablero del Incremento 3.
+- Pinta todo el texto del ciudadano con `textContent` y nunca con `innerHTML`,
+  porque el panel es justo donde un moderador lee texto escrito por un
+  desconocido. Dejó una prueba que mete `<img src=x onerror=...>` como ubicación
+  y verifica que se muestre como texto.
+- Creó `datos/categorias.js` como catálogo único: antes las categorías estaban
+  escritas a mano en el HTML y ahora el formulario arma su `<select>` desde ahí
+  y el panel saca de ahí las etiquetas, para que no se desincronicen.
+
+Probó las 29 comprobaciones manejando el `index.html` real dentro de un iframe:
+control de acceso con token ausente / falso / correcto, que solo se listen
+pendientes, las tres acciones, el bloqueo del descarte sin motivo y las reglas
+del gestor. Quedó como `pruebas/ValidacionPanel.prueba.html`.
+
+### Prompt 2 — "Subí los reportes, pero no aparecen en el panel de validación"
+
+"Subí los reportes, pero no aparecen en el panel de validación." (Después le pasé
+la salida del `console.table` que me pidió correr, y las dos URLs que estaba
+usando.)
+
+**Resultado:** En vez de suponer, primero reprodujo mi flujo exacto —capturar por
+el formulario y luego abrir el panel— y le pasaron las 7 comprobaciones. Con eso
+descartó el código y buscó en el entorno. Encontró **dos problemas distintos**:
+
+1. **El service worker envenenaba su propio caché.** Al diagnosticar dentro del
+   navegador salió que el service worker nuevo estaba activo y ya había borrado
+   el caché viejo, pero seguía sirviendo el `index.html` anterior. La causa:
+   `cache.addAll()` pide los archivos pasando por el caché HTTP del navegador,
+   así que la versión nueva se instalaba guardando copias viejas. Lo arregló con
+   `new Request(ruta, { cache: 'reload' })`, más `skipWaiting()` y
+   `clients.claim()` para que la actualización tome el control al recargar en
+   vez de esperar a que se cierren todas las pestañas.
+2. **La causa real de mi caso: dos orígenes distintos.** Yo capturaba en
+   `http://127.0.0.1:8000` y abría el panel en `http://localhost:8000`. Para el
+   navegador son sitios diferentes y **IndexedDB está separado por origen**, así
+   que el panel leía una base vacía. Mis cuatro reportes estaban intactos.
+
+De paso admitió un error propio: la página `pruebas/ReporteStore.prueba.html`
+que había entregado en la sesión anterior decía "base de prueba" pero borraba la
+base **real**. La cambió para que use una base aparte
+(`denuncia_ciudadana_pruebas`) y puso la suite del panel —que sí necesita la base
+real— detrás de un botón con aviso en rojo, para que no se ejecute sola al abrir
+la página. También agregó al panel vacío una línea que dice de qué origen está
+leyendo, para que ese síntoma se explique solo la próxima vez.
+
+
+## ANÁLISIS CRÍTICO
+
+**¿Qué funcionó bien del código generado?**
+
+La forma de depurar. Ante "no aparecen los reportes" no propuso arreglos a ciegas:
+reprodujo el flujo, comprobó que el código funcionaba, y solo entonces fue por el
+entorno, midiendo el estado real del service worker y de los cachés dentro del
+navegador. El resultado fue un bug de fondo que yo no habría encontrado
+—el caché envenenándose en cada actualización— y que además explicaba por qué sus
+propias pruebas nunca lo detectaban: corrían siempre en perfiles nuevos, con el
+caché vacío.
+
+También funcionó que distinguiera entre el bug que yo creía tener y el que
+realmente tenía. La causa de mi problema era una tontería de origen
+(`127.0.0.1` contra `localhost`), y aun así el otro hallazgo valía por sí solo.
+
+**¿Qué aprendiste sobre prompt engineering?**
+
+Que describir el síntoma tal cual, sin diagnosticarlo yo, da mejor resultado que
+pedir un arreglo concreto. Escribí "subí los reportes y no aparecen" y eso dejó
+espacio para investigar; si hubiera escrito "arregla la consulta por estado", se
+habría ido a corregir código que estaba bien.
+
+Y que conviene pedir la evidencia de la prueba, no la afirmación de que algo
+funciona. Cuando pedí que probara, ejecutó la app en un navegador y reportó las
+comprobaciones una por una; ahí fue donde salieron cosas reales, incluida una
+prueba mal escrita por él mismo (una expresión regular de fecha que asumía hora
+de dos dígitos) que corrigió señalando que el fallo era de la prueba y no del
+código.
+
+
+## MODIFICACIONES MANUALES
+
+En esta sesión tampoco modifiqué código a mano. Pendientes de mi lado:
+
+1. Usar **un solo host** al probar (`127.0.0.1` o `localhost`, no ambos): cada
+   uno tiene su propia base, su propio service worker y su propio caché.
+2. Validar la lista de colonias contra una fuente oficial (sigue pendiente de la
+   sesión anterior).
+3. Fusionar las ramas de trabajo en `main`.
+
+
+**TIEMPO TOTAL:** _(pendiente de llenar)_
+
+**SATISFACCIÓN CON EL PROCESO (1-5):** _(pendiente de llenar)_
+
+**JUSTIFICACIÓN:** _(pendiente de llenar)_
