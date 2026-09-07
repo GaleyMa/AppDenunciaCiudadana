@@ -4,6 +4,7 @@
 // reglas de negocio (validar/descartar/fusionar viven en GestorValidacion).
 
 const DATABASE_NAME = 'denuncia_ciudadana';
+export const BASE_PRUEBAS = 'denuncia_ciudadana_pruebas';
 const DATABASE_VERSION = 2; // v2: id UUID (sin autoIncrement) + índice 'estado'
 const STORE_NAME = 'reportes';
 const INDEX_ESTADO = 'estado';
@@ -42,7 +43,12 @@ function generarId() {
 }
 
 export default class ReporteStore {
-    constructor() {
+    /**
+     * @param {string} [nombreBase] base a abrir. Se parametriza para que las
+     * páginas de pruebas usen una base aparte y no borren los reportes reales.
+     */
+    constructor(nombreBase = DATABASE_NAME) {
+        this.nombreBase = nombreBase;
         this.db = null;
         this.ready = null;
         // La apertura de IndexedDB es asíncrona y el constructor no puede
@@ -79,7 +85,7 @@ export default class ReporteStore {
      */
     #abrirBase() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+            const request = indexedDB.open(this.nombreBase, DATABASE_VERSION);
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;

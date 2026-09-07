@@ -13,6 +13,7 @@
 </head>
 
 <body>
+    <div id="vista-publica">
     <header class="encabezado">
         <h1>Denuncia Ciudadana<span>Mexicali, B.C.</span></h1>
         <p class="lema">Por un mejor Mexicali</p>
@@ -65,15 +66,9 @@
 
                 <div class="campo">
                     <label for="reporte-categoria">Categoría</label>
+                    <!-- Las opciones las agrega ReporteForm desde datos/categorias.js -->
                     <select id="reporte-categoria">
                         <option value="">Selecciona…</option>
-                        <option value="bache">Bache o pavimento roto</option>
-                        <option value="alumbrado">Alumbrado público apagado</option>
-                        <option value="basura">Basura acumulada</option>
-                        <option value="fuga-agua">Fuga de agua</option>
-                        <option value="vandalismo">Vandalismo o daño a mobiliario</option>
-                        <option value="punto-riesgo">Punto de riesgo (baldío, calle sin vigilancia)</option>
-                        <option value="otro">Otro</option>
                     </select>
                 </div>
 
@@ -87,6 +82,11 @@
     <footer>
         <p>Proyecto ciudadano independiente · Los reportes se guardan solo en este dispositivo.</p>
     </footer>
+    </div>
+
+    <!-- Panel de validación. Solo se llena si el hash de la URL trae el token
+         correcto (ver src/config.js); si no, ni siquiera se muestra que existe. -->
+    <div id="vista-panel" class="panel" hidden></div>
 
     <script type="module" src="app.js"></script>
 </body>

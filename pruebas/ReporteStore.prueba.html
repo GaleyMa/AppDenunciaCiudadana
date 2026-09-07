@@ -15,13 +15,14 @@
 
 <body>
     <h1>Pruebas de ReporteStore</h1>
-    <p>Sirve el proyecto por http://localhost y abre esta página. Borra la base
-        de prueba automáticamente al empezar; no toca la app.</p>
+    <p>Sirve el proyecto por http://localhost y abre esta página. Trabaja sobre
+        una base aparte (<code>denuncia_ciudadana_pruebas</code>): <strong>no toca
+        tus reportes reales</strong>.</p>
     <ul id="salida"></ul>
     <p id="resumen"></p>
 
     <script type="module">
-        import ReporteStore, { ESTADOS } from '../src/reportes/store/ReporteStore.js';
+        import ReporteStore, { ESTADOS, BASE_PRUEBAS } from '../src/reportes/store/ReporteStore.js';
 
         const salida = document.getElementById('salida');
         let pasadas = 0, fallidas = 0;
@@ -33,9 +34,9 @@
         };
 
         try {
-            await indexedDB.deleteDatabase('denuncia_ciudadana');
+            await indexedDB.deleteDatabase(BASE_PRUEBAS);
 
-            const store = new ReporteStore();
+            const store = new ReporteStore(BASE_PRUEBAS);
             const base = {
                 ubicacion: 'Calle 5 #12', fecha: new Date().toISOString(),
                 estado: ESTADOS.PENDIENTE, motivo: null, refOriginal: null,
@@ -76,11 +77,11 @@
                 'la foto sobrevive como Blob (la miniatura del panel es viable)');
 
             // Durabilidad: otra conexión a la misma base ve lo ya guardado.
-            const store2 = new ReporteStore();
+            const store2 = new ReporteStore(BASE_PRUEBAS);
             comprobar((await store2.getAllReports()).length === 3, 'durabilidad: otra conexión ve los 3 reportes');
 
             // Borrar la base con la app abierta (flujo de DevTools).
-            await indexedDB.deleteDatabase('denuncia_ciudadana');
+            await indexedDB.deleteDatabase(BASE_PRUEBAS);
             await new Promise((r) => setTimeout(r, 300));
             const idTrasBorrar = await store.saveReport({ ...base, categoria: 'bache' });
             comprobar(!!idTrasBorrar, 'el store se reconecta solo tras borrar la base');

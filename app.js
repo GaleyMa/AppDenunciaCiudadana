@@ -5,6 +5,9 @@
 
 import ReporteStore from './src/reportes/store/ReporteStore.js';
 import initReporteForm from './src/reportes/form/ReporteForm.js';
+import GestorValidacion from './src/reportes/validacion/GestorValidacion.js';
+import initValidacionPanel from './src/reportes/validacion/ValidacionPanel.js';
+import { TOKEN_PANEL, RUTA_PANEL } from './src/config.js';
 
 // --- Service worker (offline-first) ---
 if ('serviceWorker' in navigator) {
@@ -26,6 +29,52 @@ if ('serviceWorker' in navigator) {
 const store = new ReporteStore();
 
 initReporteForm(store);
+
+// --- Ruteo: vista pública o panel de validación ---
+// Todo local: se compara el token del hash contra la constante. No hay red.
+
+const vistaPublica = document.getElementById('vista-publica');
+const vistaPanel = document.getElementById('vista-panel');
+let panel = null;
+
+// Si faltan los contenedores, el navegador está sirviendo un index.html viejo
+// desde el caché del service worker. Se avisa en vez de fallar en silencio.
+if (!vistaPublica || !vistaPanel) {
+    console.error(
+        'No se encontraron #vista-publica / #vista-panel. Seguramente el service '
+        + 'worker está sirviendo un index.html viejo: en DevTools → Application → '
+        + 'Service Workers, marca "Update on reload" o pulsa Unregister y recarga.'
+    );
+}
+
+/** Token que trae la URL, o null si la ruta no es la del panel. */
+function tokenDeLaUrl() {
+    const { hash } = window.location;
+    return hash.startsWith(RUTA_PANEL) ? hash.slice(RUTA_PANEL.length) : null;
+}
+
+function enrutar() {
+    if (!vistaPublica || !vistaPanel) return;
+
+    const autorizado = tokenDeLaUrl() === TOKEN_PANEL;
+
+    // Token ausente o incorrecto: se muestra la vista pública normal, sin
+    // mensajes ni pistas de que exista un panel de moderación.
+    vistaPublica.hidden = autorizado;
+    vistaPanel.hidden = !autorizado;
+
+    if (!autorizado) {
+        vistaPanel.replaceChildren();
+        panel = null;
+        return;
+    }
+
+    if (panel) panel.render();
+    else panel = initValidacionPanel(vistaPanel, new GestorValidacion(store));
+}
+
+window.addEventListener('hashchange', enrutar);
+enrutar();
 
 // Expuesto solo para poder probar el store desde la consola de DevTools.
 // Eliminar cuando el proyecto salga de desarrollo.

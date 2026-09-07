@@ -7,6 +7,7 @@
 import { ESTADOS } from '../store/ReporteStore.js';
 import initColoniaAutocomplete from './ColoniaAutocomplete.js';
 import COLONIAS_MEXICALI from '../datos/colonias-mexicali.js';
+import CATEGORIAS from '../datos/categorias.js';
 
 /**
  * Conecta el formulario #reporte-form con el ReporteStore.
@@ -22,6 +23,15 @@ export default function initReporteForm(store) {
     const botonEnviar = document.getElementById('btn-enviar');
     const errorMsg = document.getElementById('error-msg');
     const exitoMsg = document.getElementById('exito-msg');
+
+    // Las categorías salen del catálogo compartido con el panel de validación,
+    // para que no haya dos listas que se desincronicen.
+    for (const { valor, etiqueta } of CATEGORIAS) {
+        const opcion = document.createElement('option');
+        opcion.value = valor;
+        opcion.textContent = etiqueta;
+        selectCategoria.appendChild(opcion);
+    }
 
     // Sugerencias de colonia mientras se escribe. El campo sigue aceptando
     // texto libre: la lista solo ahorra tecleo y unifica la escritura.

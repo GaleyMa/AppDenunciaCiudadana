@@ -264,3 +264,212 @@ footer p {
         font-size: 1.7rem;
     }
 }
+
+/* ===== Panel de validación (Incremento 2) =====
+   Se muestra solo cuando la URL trae el token correcto; la vista pública queda
+   oculta mientras tanto. */
+
+.panel {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px 14px 30px;
+}
+
+.panel-cabecera {
+    background-color: var(--verde);
+    color: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+
+.panel-cabecera h1 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.panel-conteo {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Mensaje de resultado de la última acción. Vacío no ocupa espacio. */
+.panel-aviso {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--exito);
+}
+
+.panel-aviso:not(:empty) {
+    margin-bottom: 12px;
+    padding: 9px 12px;
+    background-color: #e8f3ec;
+    border-radius: 6px;
+}
+
+.panel-aviso.es-error {
+    color: var(--error);
+    background-color: #fdf3f4;
+}
+
+.sin-datos {
+    padding: 22px;
+    text-align: center;
+    color: var(--texto-suave);
+    background-color: #fff;
+    border: 1px dashed var(--borde);
+    border-radius: 10px;
+}
+
+.lista-reportes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.reporte {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 12px;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.miniatura {
+    width: 84px;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: var(--arena);
+    border-radius: 8px;
+}
+
+.miniatura img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sin-foto {
+    font-size: 0.72rem;
+    color: var(--texto-suave);
+}
+
+.datos p {
+    margin: 0 0 3px;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+}
+
+.datos .categoria {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--texto);
+}
+
+.datos .id-reporte {
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+/* Los botones y el detalle ocupan el ancho completo de la tarjeta. */
+.acciones,
+.accion-detalle {
+    grid-column: 1 / -1;
+}
+
+.acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.acciones button,
+.acciones-detalle button {
+    flex: 1 1 auto;
+    min-width: 96px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+}
+
+.btn-principal {
+    background-color: var(--verde);
+}
+
+.btn-peligro {
+    background-color: var(--error);
+}
+
+.btn-peligro:hover {
+    background-color: #8c0019;
+}
+
+.btn-secundario {
+    background-color: #fff;
+    color: var(--texto);
+    border: 1px solid var(--borde);
+}
+
+.btn-secundario:hover {
+    background-color: var(--arena);
+}
+
+.accion-detalle {
+    border-top: 1px solid var(--borde);
+    padding-top: 10px;
+}
+
+.accion-titulo {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.motivos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.motivo {
+    font-weight: 400;
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+.motivo input {
+    width: auto;
+    margin-right: 4px;
+}
+
+.accion-detalle select {
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+
+.acciones-detalle {
+    display: flex;
+    gap: 8px;
+}
+
+.panel-pie {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+}
+
+.panel-pie p {
+    margin: 0 0 6px;
+}
+
+.panel-pie a {
+    color: var(--verde);
+}
