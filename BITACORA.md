@@ -97,3 +97,133 @@ dependa del mensaje del navegador
 **JUSTIFICACIÓN:**
 
 Las respuestas de la IA fueron bastante acertadas, y al pedirle que me explicara cada sección fui aprendiendo el porqué de las cosas en vez de solo copiar. Fue una experiencia muy grata. No le doy 5 porque tardaba muchisimo en generar las respuestas, 28 minutos de una sola fue una exageracion. Fuera de eso siento que aprendi mucho acerca de como sacarle mejor provecho a los prompt.
+
+
+
+
+
+# BITÁCORA DE IMPLEMENTACIÓN CON IA — SESIÓN 2
+
+Herramienta: Claude Code (Claude Opus 5) dentro de VS Code
+Fecha: 6 de septiembre de 2026
+Historias implementadas: HT-02 — ReporteStore (persistencia en IndexedDB),
+cierre de HT-01 (conectar el formulario al guardado) y preparación del
+Incremento 2.
+
+
+## PROMPTS UTILIZADOS
+
+### Prompt 1 — Contexto del proyecto y corrección de tres bugs del ReporteStore
+
+"Estoy terminando el Incremento 2 de una PWA de denuncias ciudadanas. Antes de construir el Incremento 2 (ValidacionPanel + GestorValidacion), hay que corregir dos bugs en ReporteStore.js que ya detecté:
+1. Falta el índice `estado`. `getReportsByState` usa `objectStore.index('estado')`
+   pero ese índice nunca se crea en `onupgradeneeded`. Hay que crearlo y subir
+   DATABASE_VERSION a 2 para que corra la migración.
+2. Race condition al abrir la base. Está generando con autoIncrement (números secuenciales que
+revelan el orden de los reportes). Cámbialo a `crypto.randomUUID(). Es requisito de anonimato del proyecto.
+Muéstrame el plan antes de editar. No construyas el panel todavía 
+
+**Resultado:** Antes de escribir código leyó el contexto y todo el proyecto, y
+devolvió el plan pedido. Encontró tres cosas que yo no había visto:
+
+- **El formulario no estaba conectado en realidad.** `ReporteForm.js` importaba
+  `'../store/ReporteStore.js'`, una ruta que no existía (los dos archivos estaban
+  en la raíz), y el `index.html` cargaba `app.js` como script clásico, no como
+  módulo. Lo que corría era el `console.log` de la sesión 1: **no se guardaba
+  nada en IndexedDB**.
+- **IndexedDB no permite cambiar `keyPath` ni `autoIncrement`** de un object
+  store que ya existe. Para pasar del id numérico al UUID no basta con subir la
+  versión: la migración tiene que borrar y recrear el store (y con él los datos
+  de prueba de la v1).
+- **La foto se guardaba como `ArrayBuffer`** por un `FileReader` innecesario. Un
+  `File` ya es un `Blob`, y con `ArrayBuffer` la miniatura del ValidacionPanel no
+  iba a poder generarse con `URL.createObjectURL`.
+
+Propuso además dos funciones que faltaban para el Incremento 2: `getAllReports()`
+y un `updateReport(id, cambios)` genérico, porque descartar necesita guardar
+estado + motivo y fusionar estado + refOriginal en una sola transacción.
+
+### Prompt 2 — Aprobación del plan
+
+"sAplica los cambios Antes mencionados"
+
+**Resultado:** Creó `src/reportes/store/` y `src/reportes/form/`, movió los
+módulos y reescribió el cableado completo:
+
+- `app.js` quedó como punto de entrada: registra el service worker, crea una sola
+  instancia del store y se la pasa al formulario. Eliminó el listener duplicado
+  que hacía `console.log`.
+- `ReporteForm.js` ahora recibe el store por parámetro (inyección de dependencia),
+  guarda la foto como Blob y muestra la confirmación en la interfaz.
+- `index.html` carga `app.js` con `type="module"`.
+- `service-worker.js` subió a `denuncia-v3` y agregó los módulos ES6 al caché:
+  el navegador los pide por separado, sin ellos la app no abre offline.
+- Encontró que `manifest.json` seguía roto (`start_url: "/img"` e íconos
+  apuntando a `icon-192x192.png`, que no existe) pese a que en la bitácora de la
+  sesión 1 yo lo había dado por corregido.
+
+Lo más útil: **probó todo en un Firefox headless**, no solo revisó el código.
+La suite del store pasó 11 de 11 y la del formulario 13 de 13 (submit vacío,
+guardado real, campos que quedan en IndexedDB, y que ninguno identifique al
+autor). Dejó la suite como `pruebas/ReporteStore.prueba.html` para volver a
+correrla.
+
+### Prompt 3 — Colonias de Mexicali, diseño y categorías de inseguridad
+
+"En ubicación puedes poner un listado de colonias de Mexicali, Baja California, que la persona sea capaz de escribir y aparezcan las opciones de colonias que hacen match con lo que va escribiendo. Además, agrégale un poco de diseño a la
+página del formulario, un título 'Denuncia Ciudadana Mexicali, B.C.', 'Por un
+mejor Mexicali' o algo donde explique un poco de qué es esta página. También estaría bien expandir un poco más las categorías, unas dos más relacionadas con
+inseguridad."
+
+**Resultado:** Hizo el autocompletado sin librerías y sin `<datalist>` (explicó
+que su apariencia cambia mucho entre navegadores móviles). Ignora acentos y
+mayúsculas, prioriza las colonias que empiezan con lo escrito, limita a 8
+sugerencias, se navega con flechas / Enter / Escape y lleva atributos ARIA de
+combobox. El campo sigue aceptando texto libre, para poder escribir una calle o
+un cruce que no esté en el catálogo. Las 37 colonias quedaron aisladas en
+`src/reportes/datos/colonias-mexicali.js` para poder editarlas sin tocar el
+formulario.
+
+Rediseñó la portada (encabezado, lema, tarjeta de "¿Qué es esto?") y agregó las
+categorías **vandalismo** y **punto de riesgo**. Por su cuenta añadió un aviso de
+que la app no sustituye al 911, argumentando que con categorías de inseguridad
+alguien podría esperar una respuesta de emergencia que la app no puede dar; me
+avisó que lo había agregado sin que yo lo pidiera, por si lo quería quitar.
+Las pruebas de interfaz pasaron 16 de 16.
+
+Fue honesto con una limitación importante: **la lista de colonias la escribió de
+memoria, no de una fuente oficial**, y me dijo explícitamente que hay que
+contrastarla con el directorio del Ayuntamiento de Mexicali o el marco
+geoestadístico del INEGI antes de entregar.
+
+
+## ANÁLISIS CRÍTICO
+
+**¿Qué funcionó bien del código generado?**
+
+Que las pruebas fueran ejecución real y no revisión de código. Corriendo el proyecto en un navegador headless salió un bug que ninguna lectura del código habría mostrado: al borrar la base desde DevTools con la app abierta l flujo que la propia IA me había recomendado para probar el manejador.  También funcionó que respetara el alcance. Le pedí explícitamente que no construyera el ValidacionPanel todavía y no lo hizo, aunque ya tenía todo el contexto para hacerlo; se limitó a dejar el store con las funciones que ese panel va a necesitar.
+
+**¿Qué aprendiste sobre prompt engineering?**
+
+Que dar el archivo de contexto completo al inicio cambia la calidad de las respuestas: no tuve que repetir la filosofía técnica (vanilla, cero librerías, offline-first, anonimato) en cada prompt, y las decisiones venían ya alineadas con ella.
+
+Que pedir el plan antes del código es lo que más ahorra trabajo. Ahí fue donde aparecieron los tres hallazgos que yo no tenía en el radar, incluido que mi formulario no guardaba nada. Si hubiera pedido "arregla estos dos bugs" a secas, habría tardado mas y causado mas problemas.
+
+Y que conviene desconfiar de mi propia bitácora: yo había registrado como corregidas las rutas de los íconos del manifest y no lo estaban. Vale más verificar el archivo que confiar en la nota.
+
+
+## MODIFICACIONES MANUALES
+
+En esta sesión no hice modificaciones manuales al código: todo se hizo desde Claude Code y quedó verificado en el navegador. Lo que sí quedó pendiente de mi lado:
+
+Validar la lista de colonias de colonias-mexicali.js contra una fuente oficial (Ayuntamiento de Mexicali / INEGI) y completarla.
+
+Antes de cada prueba: borrar la base en DevTools (Application, IndexedDB , denuncia_ciudadana, Delete database).
+
+
+**TIEMPO TOTAL:** Aprox. 1h 20m de trabajo con la herramienta
+
+**SATISFACCIÓN CON EL PROCESO (1-5):** 5
+
+**JUSTIFICACIÓN:**  Al cambiar de Un agente local a uno en la nube, se aprecio no solo una mejora en tiempo de respuesta, si no en la calidad de los resultados. La explicación que solicito antes de aplicar cambios son precisamente para poder identificar hasta que punto sigue mis instrucciones, en donde comienza a separarse del concepto principal de la aplicación, En este caso no sentí divergencia alguna. El flujo de trabajo fue mejor, entendi mas y sentí que el avance fué bueno.
+
