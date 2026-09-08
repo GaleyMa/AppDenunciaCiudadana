@@ -64,13 +64,15 @@ end $$;
 
 -- ══ 3. Anonimato estructural: nada de coordenadas ni texto libre en lo público ══
 do $$ declare v integer; begin
+  -- Nada de lo publico puede traer la ubicacion exacta ni el texto libre.
+  -- `geom` solo se admite en los dos catalogos de geografia de la ciudad
+  -- (colonias y codigos_postales), que son publicos a proposito y los necesita
+  -- el mapa; en cualquier otra relacion seria una fuga.
   select count(*) into v from information_schema.columns
    where table_schema = 'public'
      and (column_name ilike '%coordenad%'
           or column_name in ('ubicacion_texto','lat','lon','latitud','longitud','geografia')
-          -- colonias.geom queda fuera a proposito: son los poligonos de la
-          -- ciudad para el mapa coropletico, geografia publica y no de personas.
-          or (column_name = 'geom' and table_name <> 'colonias'));
+          or (column_name = 'geom' and table_name not in ('colonias','codigos_postales')));
   perform pruebas.chk(v = 0, 'ninguna vista/tabla publica expone coordenadas ni texto libre');
 end $$;
 
@@ -187,6 +189,54 @@ do $$ declare v boolean; begin
   begin set local role anon; insert into public.colonias (nombre) values ('Colonia Pirata'); v := false;
   exception when others then v := true; end;
   reset role; perform pruebas.chk(v, 'anon NO puede escribir en el catalogo de colonias');
+end $$;
+
+
+-- ══ 9. Códigos postales y derivación server-side ══
+do $$ begin
+  perform pruebas.chk((select count(*) from public.codigos_postales) = 231, 'se cargaron los 231 poligonos de CP');
+end $$;
+
+do $$ declare v integer; begin
+  -- El reporte 1 se creo con coordenadas del centro de Mexicali.
+  select codigo_postal into v from privado.reportes where id = '11111111-1111-4111-8111-111111111111';
+  perform pruebas.chk(v is not null and v between 21000 and 21999, 'el servidor derivo el CP desde las coordenadas: ' || coalesce(v::text,'NULO'));
+end $$;
+
+do $$ declare v integer; begin
+  select codigo_postal into v from privado.reportes where id = '22222222-2222-4222-8222-222222222222';
+  perform pruebas.chk(v is null, 'un reporte sin coordenadas queda sin CP (contara en tablas, no en el mapa)');
+end $$;
+
+do $$ declare v_id uuid := gen_random_uuid(); v integer; begin
+  -- Punto en medio del mar de Cortes: no cae en ningun CP ni cerca.
+  set local role anon;
+  perform public.crear_reporte(v_id, 'otro', null, 'fuera del area', 28.0, -112.0, null);
+  reset role;
+  select codigo_postal into v from privado.reportes where id = v_id;
+  perform pruebas.chk(v is null, 'un punto fuera de Mexicali no recibe CP inventado');
+  delete from privado.reportes where id = v_id;
+end $$;
+
+do $$ declare v boolean; begin
+  begin set local role anon; perform 1 from public.estadisticas_por_cp limit 1; v := true;
+  exception when others then v := false; end;
+  reset role; perform pruebas.chk(v, 'anon puede leer el agregado por CP');
+end $$;
+
+do $$ declare v_cp integer; begin
+  select codigo_postal into v_cp from privado.reportes where id = '11111111-1111-4111-8111-111111111111';
+  perform pruebas.chk((select validados from public.estadisticas_por_cp where codigo_postal = v_cp) = 1,
+    'estadisticas_por_cp cuenta el reporte validado en su CP');
+  perform pruebas.chk((select count(*) from public.estadisticas_por_cp) = 231,
+    'el agregado por CP devuelve todos los poligonos, tambien los que van en cero');
+end $$;
+
+do $$ declare v integer; begin
+  select count(*) into v from information_schema.columns
+   where table_schema = 'public' and table_name = 'estadisticas_por_cp'
+     and column_name ilike '%coordenad%';
+  perform pruebas.chk(v = 0, 'el agregado por CP no arrastra coordenadas');
 end $$;
 
 select case when ok then 'PASS' else 'FALLO' end as r, etiqueta from pruebas.resultados order by n;

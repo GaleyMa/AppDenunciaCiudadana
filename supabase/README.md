@@ -39,6 +39,7 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_api_publica.sql` | `crear_reporte()` y las vistas de agregación |
    | `…_moderacion.sql` | Tabla de moderadores y las acciones autenticadas |
    | `…_semilla_colonias.sql` | Las 37 colonias del catálogo del cliente |
+   | `…_codigos_postales.sql` | 231 polígonos de CP + derivación server-side (301 KB, tarda unos segundos) |
 
 3. **Comprueba que `privado` NO esté expuesto**: Settings → API → *Exposed
    schemas* debe decir `public, graphql_public`. Si aparece `privado`, quítalo:
@@ -48,6 +49,26 @@ retorno de ninguna función, ni siquiera para un moderador.
 
 Con el CLI de Supabase, en vez del paso 2: `supabase link` y `supabase db push`,
 que toma los mismos archivos de `migrations/`.
+
+## Por qué el mapa es por código postal
+
+El coroplético agrupa por **código postal**, no por colonia: el GeoJSON público
+disponible (`open-mexico/mexico-geojson`) trae polígonos de CP, y no existe un
+GeoJSON abierto de colonias de Mexicali. La colonia sigue siendo la unidad de
+las tablas y del top 5, que salen del catálogo del formulario.
+
+El CP lo calcula **el servidor** a partir de las coordenadas del reporte
+(`privado.cp_de_punto`). No se acepta el CP que mande el cliente: sería trivial
+sesgar el mapa. Las coordenadas siguen sin exponerse — el CP es su versión
+agregada, y convertir un punto exacto en un área es parte de la anonimización.
+
+Un reporte sin coordenadas (el ciudadano negó el permiso de ubicación) se queda
+sin CP: cuenta en las tablas por colonia, pero no aparece en el mapa.
+
+Los polígonos vienen simplificados a ~22 m con Douglas-Peucker. Como las
+fronteras ya no encajan al milímetro, si un punto cae en una rendija entre dos
+polígonos se le asigna el CP más cercano dentro de 1 km; más lejos, se deja
+nulo.
 
 ## Dar de alta un moderador
 
@@ -97,7 +118,7 @@ offline no duplica reportes.
 ```
 
 Levanta un Postgres con PostGIS, simula el entorno de Supabase (roles `anon` /
-`authenticated`, esquema `auth`), aplica las migraciones y corre **36
+`authenticated`, esquema `auth`), aplica las migraciones y corre **44
 comprobaciones**: que `anon` no pueda leer la tabla cruda, que la captura anónima
 funcione y sea idempotente, que ninguna vista exponga coordenadas, que moderar
 exija sesión **y** alta de moderador, que descartar exija motivo, que no se
@@ -105,9 +126,10 @@ puedan encadenar fusiones, y que los agregados cuenten solo reportes validados.
 
 ## Pendientes conocidos
 
-- **Polígonos de colonias.** `colonias.geom` está vacío. El coroplético necesita
-  el GeoJSON oficial (Ayuntamiento de Mexicali / INEGI). El catálogo de 37
-  nombres también sigue sin contrastar.
+- **Polígonos de colonias.** `colonias.geom` sigue vacío: el mapa usa códigos
+  postales justamente porque no hay GeoJSON abierto de colonias. Si consigues
+  el del Ayuntamiento o INEGI, el coroplético puede pasar a colonia. El catálogo
+  de 37 nombres también sigue sin contrastar.
 - **Abuso en la captura anónima.** Hoy cualquiera con la anon key puede insertar
   reportes en volumen. Falta limitar por IP con una Edge Function o un captcha;
   no se resuelve con RLS.

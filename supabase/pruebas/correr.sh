@@ -12,6 +12,12 @@ echo "▶ Levantando Postgres con PostGIS…"
 "$MOTOR" run -d --rm --name "$CONTENEDOR" -e POSTGRES_PASSWORD=probando \
     docker.io/postgis/postgis:16-3.4 >/dev/null
 
+# La imagen de Postgres levanta un servidor temporal para inicializar y luego
+# lo apaga y arranca el definitivo. Esperar solo a pg_isready engancha al
+# temporal y las migraciones se caen a media carga con "the database system is
+# shutting down". Por eso se espera al aviso del servidor definitivo.
+echo "   esperando a que arranque el servidor definitivo…"
+until "$MOTOR" logs "$CONTENEDOR" 2>&1 | grep -q "PostgreSQL init process complete"; do sleep 1; done
 until "$MOTOR" exec "$CONTENEDOR" pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 
 psql_() { "$MOTOR" exec -i "$CONTENEDOR" psql -U postgres -d denuncia -q -P pager=off "$@"; }
