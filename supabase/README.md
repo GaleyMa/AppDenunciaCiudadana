@@ -39,7 +39,18 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_api_publica.sql` | `crear_reporte()` y las vistas de agregación |
    | `…_moderacion.sql` | Tabla de moderadores y las acciones autenticadas |
    | `…_semilla_colonias.sql` | Las 37 colonias del catálogo del cliente |
-   | `…_codigos_postales.sql` | 231 polígonos de CP + derivación server-side (301 KB, tarda unos segundos) |
+   | `…_cp_1_tabla.sql` | Tabla de códigos postales |
+   | `…_cp_2_datos_1_de_6.sql` … `…_cp_7_datos_6_de_6.sql` | Los 231 polígonos, en 6 partes |
+   | `…_cp_8_funciones.sql` | Derivación del CP y vista del mapa |
+
+   > Los polígonos van partidos en seis archivos a propósito: el SQL Editor
+   > rechaza peticiones grandes con **"Request Entity Too Large"**, y el archivo
+   > completo pesaba 300 KB. Cada parte ronda los 35 KB. Ejecútalas en orden;
+   > la de funciones va al final porque necesita la tabla ya cargada.
+   >
+   > Si prefieres una sola pasada, con el CLI: `supabase link --project-ref
+   > <ref>` y `supabase db push` aplican todo junto (pide la contraseña de la
+   > base, la que definiste al crear el proyecto).
 
 3. **Comprueba que `privado` NO esté expuesto**: Settings → API → *Exposed
    schemas* debe decir `public, graphql_public`. Si aparece `privado`, quítalo:
