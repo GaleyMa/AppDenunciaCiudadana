@@ -4,32 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <title>Pruebas — ValidacionPanel y GestorValidacion</title>
+    <link rel="stylesheet" href="../style.css">
     <style>
-        body { font-family: monospace; margin: 20px; background: #f0f0f0; }
-        li { margin: 4px 0; }
+        body { display: block; height: auto; background: #f0f0f0; }
+        #salida { font-family: monospace; margin: 20px; padding: 0; list-style: none; }
+        #salida li { margin: 4px 0; }
         .ok { color: #0a7d33; }
         .fail { color: #b00020; font-weight: bold; }
-        #resumen { font-size: 1.1rem; margin-top: 15px; }
-        iframe { width: 520px; height: 420px; border: 1px solid #ccc; background: #fff; }
-        .alerta { background: #fdf3f4; border-left: 3px solid #b00020; padding: 10px 12px; }
-        button { padding: 10px 16px; font: inherit; cursor: pointer; }
+        #resumen { font-family: monospace; font-size: 1.1rem; margin: 0 20px 20px; }
+        #host { max-width: 560px; margin: 0 auto; }
     </style>
 </head>
 
 <body>
-    <h1>Pruebas del Incremento 2</h1>
-    <p class="alerta">⚠️ Esta suite maneja el <code>index.html</code> real, así
-        que trabaja sobre la base real y <strong>borra todos los reportes que
-        tengas guardados</strong>. No la ejecutes si quieres conservarlos.</p>
-    <p><button id="btn-correr" type="button">Ejecutar pruebas</button></p>
     <ul id="salida"></ul>
     <p id="resumen"></p>
     <div id="host"></div>
 
     <script type="module">
-        import { TOKEN_PANEL, RUTA_PANEL } from '../src/config.js';
+        // Monta el panel directamente con el gestor LOCAL, sobre una base de
+        // pruebas aparte: no toca tus reportes ni pasa por la app. El acceso a
+        // la moderación (URL, login) se prueba en AccesoModeracion.prueba.html.
+        import initValidacionPanel from '../src/reportes/validacion/ValidacionPanel.js';
         import GestorValidacion from '../src/reportes/validacion/GestorValidacion.js';
-        import ReporteStore from '../src/reportes/store/ReporteStore.js';
+        import ReporteStore, { BASE_PRUEBAS } from '../src/reportes/store/ReporteStore.js';
 
         const salida = document.getElementById('salida');
         let pasadas = 0, fallidas = 0;
@@ -39,131 +37,103 @@
             salida.insertAdjacentHTML('beforeend',
                 `<li class="${condicion ? 'ok' : 'fail'}">${condicion ? 'PASS' : 'FALLO'} — ${texto}</li>`);
         };
-
         const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-        // No corre sola: hay que pulsar el botón, para no borrar por
-        // accidente los reportes reales al abrir la página.
-        const boton = document.getElementById('btn-correr');
-        boton.addEventListener('click', () => { boton.disabled = true; correr(); });
+        try {
+            await indexedDB.deleteDatabase(BASE_PRUEBAS);
+            const store = new ReporteStore(BASE_PRUEBAS);
+            const gestor = new GestorValidacion(store);
 
-        async function correr() {
-            await indexedDB.deleteDatabase('denuncia_ciudadana');
-            const frame = document.createElement('iframe');
-            const cargada = new Promise((r) => frame.addEventListener('load', r));
-            frame.src = '../index.html';
-            document.getElementById('host').appendChild(frame);
-            await cargada;
+            const foto = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
+            const base = (categoria, ubicacion, fecha) => ({
+                foto, categoria, ubicacion, fecha, estado: 'pendiente', motivo: null, refOriginal: null,
+            });
+            const idA = await store.saveReport(base('bache', 'Colonia Nueva', '2026-09-05T10:00:00.000Z'));
+            const idB = await store.saveReport(base('basura', 'Villafontana', '2026-09-06T10:00:00.000Z'));
+            const idC = await store.saveReport(base('punto-riesgo', '<img src=x onerror="window.HACKEADO=1">', '2026-09-04T10:00:00.000Z'));
+            await store.saveReport({ ...base('alumbrado', 'Pro Hogar', '2026-09-03T10:00:00.000Z'), estado: 'validado' });
 
-            try {
-                await espera(300);
-                const d = frame.contentDocument, w = frame.contentWindow;
-                const store = w.reporteStore;
-                const panel = () => d.getElementById('vista-panel');
-                const publica = () => d.getElementById('vista-publica');
-                const tarjetas = () => [...panel().querySelectorAll('.reporte')];
-                const aviso = () => panel().querySelector('.panel-aviso')?.textContent ?? '';
-                const irA = async (hash) => { w.location.hash = hash; await espera(350); };
+            const host = document.getElementById('host');
+            initValidacionPanel(host, gestor);
+            await espera(400);
 
-                // Datos de prueba: 3 pendientes y 1 ya validado.
-                const foto = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
-                const base = (categoria, ubicacion, fecha) => ({
-                    foto, categoria, ubicacion, fecha, estado: 'pendiente', motivo: null, refOriginal: null,
-                });
-                const idA = await store.saveReport(base('bache', 'Colonia Nueva', '2026-09-05T10:00:00.000Z'));
-                const idB = await store.saveReport(base('basura', 'Villafontana', '2026-09-06T10:00:00.000Z'));
-                const idC = await store.saveReport(base('punto-riesgo', '<img src=x onerror="window.HACKEADO=1">', '2026-09-04T10:00:00.000Z'));
-                await store.saveReport({ ...base('alumbrado', 'Pro Hogar', '2026-09-03T10:00:00.000Z'), estado: 'validado' });
+            const tarjetas = () => [...host.querySelectorAll('.reporte')];
+            const aviso = () => host.querySelector('.panel-aviso')?.textContent ?? '';
+            const tarjetaDe = (id) => tarjetas().find((t) => t.textContent.includes(id.slice(0, 8)));
 
-                // --- Control de acceso por URL secreta ---
-                await irA('');
-                comprobar(panel().hidden && !publica().hidden, 'sin token: panel oculto y vista pública visible');
-                comprobar(panel().children.length === 0, 'sin token: el panel ni siquiera se pinta');
-                comprobar(!d.body.textContent.includes('validación'), 'sin token: la página no revela que exista un panel');
+            // --- Listado ---
+            comprobar(tarjetas().length === 3, 'solo lista pendientes (3 de 4 reportes)');
+            comprobar(!host.textContent.includes('Pro Hogar'), 'el reporte ya validado no aparece');
+            comprobar(tarjetas()[0].querySelector('.categoria').textContent === 'Basura acumulada',
+                'ordena del más reciente al más antiguo');
+            comprobar(tarjetas().every((t) => t.querySelector('.miniatura img')?.src.startsWith('blob:')),
+                'cada tarjeta pinta la miniatura desde el blob');
+            comprobar(host.textContent.includes('Colonia Nueva'), 'muestra la ubicación');
+            comprobar(/\d{1,2} \w+ 2026, \d{1,2}:\d{2}/.test(host.textContent), 'muestra la fecha formateada');
+            comprobar(host.textContent.includes('ID ' + idA.slice(0, 8)), 'muestra el id corto del reporte');
+            comprobar(!window.HACKEADO && host.textContent.includes('<img src=x'),
+                'la ubicación se pinta como texto, no como HTML');
+            comprobar(!/autor|usuario|correo|tel[eé]fono/i.test(host.textContent),
+                'ninguna tarjeta menciona datos de autor');
 
-                await irA(RUTA_PANEL + 'token-inventado-123');
-                comprobar(panel().hidden && !publica().hidden, 'token incorrecto: sigue la vista pública, sin mensajes');
+            // --- Validar ---
+            tarjetaDe(idA).querySelector('.btn-principal').click();
+            await espera(400);
+            comprobar((await store.getReportById(idA)).estado === 'validado', 'validar cambia el estado a "validado"');
+            comprobar(!tarjetaDe(idA) && tarjetas().length === 2, 'el reporte validado desaparece de pendientes');
+            comprobar(aviso().includes('validado'), 'el panel avisa el resultado de la acción');
 
-                await irA(RUTA_PANEL + TOKEN_PANEL);
-                comprobar(!panel().hidden && publica().hidden, 'token correcto: se muestra el panel');
+            // --- Descartar ---
+            tarjetaDe(idB).querySelector('.btn-peligro').click();
+            await espera(150);
+            const detalle = tarjetaDe(idB).querySelector('.accion-detalle');
+            comprobar(detalle.querySelectorAll('input[type=radio]').length === 3, 'descartar ofrece los 3 motivos');
+            detalle.querySelector('.btn-peligro').click();
+            await espera(300);
+            comprobar(aviso().includes('motivo') && (await store.getReportById(idB)).estado === 'pendiente',
+                'descartar sin motivo se bloquea y el reporte sigue pendiente');
+            detalle.querySelector('input[value="spam"]').checked = true;
+            detalle.querySelector('.btn-peligro').click();
+            await espera(400);
+            const descartado = await store.getReportById(idB);
+            comprobar(descartado.estado === 'descartado' && descartado.motivo === 'spam',
+                'descartar guarda estado y motivo');
+            comprobar(!tarjetaDe(idB), 'el descartado sale de la lista');
 
-                // --- Listado ---
-                comprobar(tarjetas().length === 3, 'solo lista pendientes (3 de 4 reportes)');
-                comprobar(!panel().textContent.includes('Pro Hogar'), 'el reporte ya validado no aparece');
-                comprobar(tarjetas()[0].querySelector('.categoria').textContent === 'Basura acumulada',
-                    'ordena del más reciente al más antiguo');
-                comprobar(tarjetas().every((t) => t.querySelector('.miniatura img')?.src.startsWith('blob:')),
-                    'cada tarjeta pinta la miniatura desde el blob');
-                comprobar(panel().textContent.includes('Colonia Nueva'), 'muestra la ubicación');
-                comprobar(/\d{1,2} \w+ 2026, \d{1,2}:\d{2}/.test(panel().textContent), 'muestra la fecha formateada');
-                comprobar(panel().textContent.includes('ID ' + idA.slice(0, 8)), 'muestra el id corto del reporte');
-                comprobar(!w.HACKEADO && panel().textContent.includes('<img src=x'),
-                    'la ubicación se pinta como texto, no como HTML');
+            // --- Fusionar ---
+            tarjetaDe(idC).querySelector('.btn-secundario').click();
+            await espera(350);
+            const cajaFusion = tarjetaDe(idC).querySelector('.accion-detalle');
+            const select = cajaFusion.querySelector('select');
+            const opciones = [...select.options].map((o) => o.value);
+            comprobar(opciones.includes(idA) && !opciones.includes(idC) && !opciones.includes(idB),
+                'candidatos de fusión: incluye vivos, excluye el propio y el descartado');
+            select.value = idA;
+            cajaFusion.querySelector('.btn-principal').click();
+            await espera(400);
+            const fusionado = await store.getReportById(idC);
+            comprobar(fusionado.estado === 'fusionado' && fusionado.refOriginal === idA,
+                'fusionar guarda estado y referencia al original');
+            comprobar(tarjetas().length === 0 && host.textContent.includes('No hay reportes pendientes'),
+                'la lista vacía muestra su mensaje');
 
-                // --- Validar ---
-                const tarjetaDe = (id) => tarjetas().find((t) => t.textContent.includes(id.slice(0, 8)));
-                tarjetaDe(idA).querySelector('.btn-principal').click();
-                await espera(350);
-                comprobar((await store.getReportById(idA)).estado === 'validado', 'validar cambia el estado a "validado"');
-                comprobar(!tarjetaDe(idA) && tarjetas().length === 2, 'el reporte validado desaparece de pendientes');
-                comprobar(aviso().includes('validado'), 'el panel avisa el resultado de la acción');
-
-                // --- Descartar ---
-                tarjetaDe(idB).querySelector('.btn-peligro').click();
-                await espera(150);
-                const detalle = tarjetaDe(idB).querySelector('.accion-detalle');
-                comprobar(detalle.querySelectorAll('input[type=radio]').length === 3, 'descartar ofrece los 3 motivos');
-                detalle.querySelector('.btn-peligro').click();
-                await espera(250);
-                comprobar(aviso().includes('motivo') && (await store.getReportById(idB)).estado === 'pendiente',
-                    'descartar sin motivo se bloquea y el reporte sigue pendiente');
-                detalle.querySelector('input[value="spam"]').checked = true;
-                detalle.querySelector('.btn-peligro').click();
-                await espera(350);
-                const descartado = await store.getReportById(idB);
-                comprobar(descartado.estado === 'descartado' && descartado.motivo === 'spam',
-                    'descartar guarda estado y motivo');
-                comprobar(!tarjetaDe(idB), 'el descartado sale de la lista');
-
-                // --- Fusionar ---
-                tarjetaDe(idC).querySelector('.btn-secundario').click();
-                await espera(300);
-                const cajaFusion = tarjetaDe(idC).querySelector('.accion-detalle');
-                const select = cajaFusion.querySelector('select');
-                const opciones = [...select.options].map((o) => o.value);
-                comprobar(opciones.includes(idA) && !opciones.includes(idC) && !opciones.includes(idB),
-                    'candidatos de fusión: incluye vivos, excluye el propio y el descartado');
-                select.value = idA;
-                cajaFusion.querySelector('.btn-principal').click();
-                await espera(350);
-                const fusionado = await store.getReportById(idC);
-                comprobar(fusionado.estado === 'fusionado' && fusionado.refOriginal === idA,
-                    'fusionar guarda estado y referencia al original');
-                comprobar(tarjetas().length === 0 && panel().textContent.includes('No hay reportes pendientes'),
-                    'la lista vacía muestra su mensaje');
-
-                // --- Reglas del gestor, sin interfaz de por medio ---
-                const gestor = new GestorValidacion(new ReporteStore());
-                const falla = async (fn, etiqueta) => {
-                    try { await fn(); comprobar(false, etiqueta + ': NO lanzó error'); }
-                    catch (error) { comprobar(true, etiqueta + ' → "' + error.message + '"'); }
-                };
-                await falla(() => gestor.descartar(idA, 'porque-si'), 'motivo inválido');
-                await falla(() => gestor.descartar(idA, ''), 'motivo vacío');
-                await falla(() => gestor.fusionar(idA, idA), 'fusionar consigo mismo');
-                await falla(() => gestor.fusionar(idA, 'id-que-no-existe'), 'fusionar con id inexistente');
-                await falla(() => gestor.fusionar(idA, idB), 'fusionar contra un reporte descartado');
-
-                await irA('');
-                comprobar(panel().hidden && !publica().hidden, 'volver al hash vacío regresa a la vista pública');
-            } catch (error) {
-                comprobar(false, 'excepción inesperada: ' + error.message);
-            }
-
-            const resumen = document.getElementById('resumen');
-            resumen.textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
-            resumen.className = fallidas ? 'fail' : 'ok';
+            // --- Reglas del gestor, sin interfaz de por medio ---
+            const falla = async (fn, etiqueta) => {
+                try { await fn(); comprobar(false, etiqueta + ': NO lanzó error'); }
+                catch (error) { comprobar(true, etiqueta + ' → "' + error.message + '"'); }
+            };
+            await falla(() => gestor.descartar(idA, 'porque-si'), 'motivo inválido');
+            await falla(() => gestor.descartar(idA, ''), 'motivo vacío');
+            await falla(() => gestor.fusionar(idA, idA), 'fusionar consigo mismo');
+            await falla(() => gestor.fusionar(idA, 'id-que-no-existe'), 'fusionar con id inexistente');
+            await falla(() => gestor.fusionar(idA, idB), 'fusionar contra un reporte descartado');
+        } catch (error) {
+            comprobar(false, 'excepción inesperada: ' + error.message);
         }
+
+        const resumen = document.getElementById('resumen');
+        resumen.textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
+        resumen.className = fallidas ? 'fail' : 'ok';
     </script>
 </body>
 

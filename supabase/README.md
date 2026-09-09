@@ -42,6 +42,7 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_cp_1_tabla.sql` | Tabla de códigos postales |
    | `…_cp_2_datos_1_de_6.sql` … `…_cp_7_datos_6_de_6.sql` | Los 231 polígonos, en 6 partes |
    | `…_cp_8_funciones.sql` | Derivación del CP y vista del mapa |
+   | `…_listar_moderables.sql` | Candidatos de fusión para el panel (incluye validados) |
 
    > Los polígonos van partidos en seis archivos a propósito: el SQL Editor
    > rechaza peticiones grandes con **"Request Entity Too Large"**, y el archivo
@@ -92,8 +93,13 @@ nulo.
    ```
 
 Sin ese renglón, la cuenta inicia sesión pero **no puede moderar**: las funciones
-lo verifican. Esto sustituye a la URL secreta del Incremento 2, que el propio
-código marcaba como ofuscación y no como seguridad.
+lo verifican.
+
+Esto sustituye a la URL secreta del Incremento 2 como control real. El token de
+la URL se conserva únicamente para que el panel no sea descubrible por curiosear
+la app; quien llegue a esa ruta se topa con la pantalla de acceso, y sin sesión
+válida el servidor no devuelve ni un reporte. Dicho de otro modo: la URL oculta,
+el login protege.
 
 ## API que consumirá el cliente (Etapa 2)
 

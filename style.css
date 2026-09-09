@@ -678,3 +678,42 @@ footer p {
     line-height: 1.25;
     padding-top: 2px;
 }
+
+/* ===== Acceso y sesión de moderación ===== */
+
+.barra-sesion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+}
+
+.barra-sesion button {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+}
+
+.acceso {
+    max-width: 380px;
+    margin: 24px auto;
+}
+
+.acceso h1 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    color: var(--verde);
+}
+
+.form-acceso {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+}

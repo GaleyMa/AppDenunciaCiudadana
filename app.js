@@ -5,8 +5,10 @@
 
 import ReporteStore from './src/reportes/store/ReporteStore.js';
 import initReporteForm from './src/reportes/form/ReporteForm.js';
-import GestorValidacion from './src/reportes/validacion/GestorValidacion.js';
+import GestorValidacionRemoto from './src/reportes/validacion/GestorValidacionRemoto.js';
 import initValidacionPanel from './src/reportes/validacion/ValidacionPanel.js';
+import SesionModerador from './src/reportes/auth/SesionModerador.js';
+import initPantallaLogin from './src/reportes/auth/PantallaLogin.js';
 import SincronizadorReportes from './src/reportes/sync/SincronizadorReportes.js';
 import initTableroPublico from './src/reportes/tablero/TableroPublico.js';
 import { TOKEN_PANEL, RUTA_PANEL } from './src/config.js';
@@ -49,6 +51,51 @@ const vistaTablero = document.getElementById('vista-tablero');
 let panel = null;
 let tablero = null;
 
+// La moderación dejó de ser local: ahora lee y escribe en el servidor, y exige
+// sesión iniciada más alta en privado.moderadores. El token de la URL se queda
+// solo como ofuscación de la existencia del panel — nunca fue seguridad.
+const sesion = new SesionModerador();
+
+/** Barra con la cuenta abierta y el botón de salir. */
+function barraSesion() {
+    const barra = document.createElement('div');
+    barra.className = 'barra-sesion';
+
+    const quien = document.createElement('span');
+    quien.textContent = sesion.correo() ?? 'Sesión iniciada';
+
+    const salir = document.createElement('button');
+    salir.type = 'button';
+    salir.id = 'btn-salir';
+    salir.className = 'btn-secundario';
+    salir.textContent = 'Cerrar sesión';
+    salir.addEventListener('click', async () => {
+        await sesion.cerrar();
+        panel = null;
+        montarModeracion();
+    });
+
+    barra.append(quien, salir);
+    return barra;
+}
+
+/** Pinta el acceso o el panel, según haya sesión. */
+function montarModeracion() {
+    vistaPanel.replaceChildren();
+
+    if (!sesion.activa()) {
+        initPantallaLogin(vistaPanel, sesion, () => montarModeracion());
+        return;
+    }
+
+    vistaPanel.appendChild(barraSesion());
+
+    // El panel se monta en su propio contenedor porque se repinta entero.
+    const hueco = document.createElement('div');
+    vistaPanel.appendChild(hueco);
+    panel = initValidacionPanel(hueco, new GestorValidacionRemoto(sesion));
+}
+
 // Si faltan los contenedores, el navegador está sirviendo un index.html viejo
 // desde el caché del service worker. Se avisa en vez de fallar en silencio.
 if (!vistaPublica || !vistaPanel || !vistaTablero) {
@@ -79,7 +126,7 @@ function enrutar() {
 
     if (autorizado) {
         if (panel) panel.render();
-        else panel = initValidacionPanel(vistaPanel, new GestorValidacion(store));
+        else montarModeracion();
     } else {
         vistaPanel.replaceChildren();
         panel = null;

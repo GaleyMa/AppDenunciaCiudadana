@@ -36,3 +36,6 @@ export const RUTA_PANEL = '#/validacion/';
 // RLS y lee la tabla cruda completa.
 export const SUPABASE_URL = 'https://cyyteitpihfenbrudull.supabase.co/rest/v1';
 export const SUPABASE_ANON_KEY = 'sb_publishable_Gc0vbeyaIOUSndexZm65zw_c8Pn80yV';
+
+/** Endpoint de autenticación (mismo proyecto, otra ruta). */
+export const SUPABASE_AUTH_URL = SUPABASE_URL.replace('/rest/v1', '/auth/v1');

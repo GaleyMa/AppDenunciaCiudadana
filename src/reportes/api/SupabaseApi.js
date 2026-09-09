@@ -8,11 +8,15 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config.js';
 
 const TIEMPO_LIMITE = 12000;
 
-/** Cabeceras comunes. La misma llave va en apikey y en Authorization. */
-function cabeceras(extra = {}) {
+/**
+ * Cabeceras comunes. `apikey` siempre es la llave publishable; el Bearer es la
+ * sesión del moderador cuando la hay, y la misma llave cuando no. Así el
+ * servidor sabe si quien llama es un anónimo o una cuenta con sesión.
+ */
+function cabeceras(extra = {}, token = null) {
     return {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token ?? SUPABASE_ANON_KEY}`,
         ...extra,
     };
 }
@@ -37,11 +41,14 @@ async function pedir(url, opciones = {}) {
     }
 }
 
-/** Llama a una función del servidor (RPC). */
-export async function rpc(nombre, parametros = {}) {
+/**
+ * Llama a una función del servidor (RPC).
+ * @param {string} [token] sesión del moderador, para las funciones que la exigen.
+ */
+export async function rpc(nombre, parametros = {}, token = null) {
     return pedir(`${SUPABASE_URL}/rpc/${nombre}`, {
         method: 'POST',
-        headers: cabeceras({ 'Content-Type': 'application/json' }),
+        headers: cabeceras({ 'Content-Type': 'application/json' }, token),
         body: JSON.stringify(parametros),
     });
 }

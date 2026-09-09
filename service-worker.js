@@ -1,4 +1,4 @@
-const CACHE_NAME = 'denuncia-v7';
+const CACHE_NAME = 'denuncia-v8';
 
 self.addEventListener('install', (event) => {
     console.log('Instalando el Service Worker...');
@@ -39,7 +39,10 @@ self.addEventListener('install', (event) => {
                     '/src/reportes/sync/SincronizadorReportes.js',
                     '/src/reportes/form/CapturaGps.js',
                     '/src/reportes/tablero/TableroPublico.js',
-                    '/src/reportes/tablero/graficas.js'
+                    '/src/reportes/tablero/graficas.js',
+                    '/src/reportes/auth/SesionModerador.js',
+                    '/src/reportes/auth/PantallaLogin.js',
+                    '/src/reportes/validacion/GestorValidacionRemoto.js'
                     // El GeoJSON de códigos postales (200 KB) NO va aquí: se
                     // guarda en caché la primera vez que alguien abre el
                     // tablero, para no cobrárselo a quien solo va a reportar.
