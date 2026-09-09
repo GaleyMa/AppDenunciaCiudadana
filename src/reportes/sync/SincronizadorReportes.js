@@ -7,7 +7,12 @@
 // El servidor acepta el mismo id que generó el cliente y la operación es
 // idempotente, así que reintentar nunca duplica un reporte.
 
-import { rpc, seleccionar, hayConexion } from '../api/SupabaseApi.js';
+import { rpc, seleccionar, subirFoto, hayConexion } from '../api/SupabaseApi.js';
+
+/** Extensión a partir del tipo, para que el archivo se llame como lo que es. */
+const EXTENSIONES = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',
+};
 
 /** Para comparar "Cuauhtémoc Norte" con lo que se haya tecleado. */
 const normalizar = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -52,6 +57,36 @@ export default class SincronizadorReportes {
     }
 
     /**
+     * Sube la foto al bucket privado y devuelve su ruta.
+     *
+     * Si el servidor RECHAZA el archivo (muy grande, tipo no permitido), el
+     * reporte se manda igual sin foto: vale más un reporte sin imagen que
+     * perderlo. Si el fallo es de red, se propaga para reintentar después.
+     */
+    async #subirFotoDe(reporte) {
+        if (reporte.fotoRuta) return reporte.fotoRuta;         // ya estaba subida
+        if (!(reporte.foto instanceof Blob)) return null;      // reporte sin foto
+
+        const extension = EXTENSIONES[reporte.foto.type] ?? 'bin';
+        const ruta = `${reporte.id}.${extension}`;
+
+        try {
+            await subirFoto(ruta, reporte.foto);
+        } catch (error) {
+            if (error.estado && error.estado < 500 && error.estado !== 429) {
+                console.warn('La foto no se pudo subir, el reporte va sin ella:', error.message);
+                return null;
+            }
+            throw error;
+        }
+
+        // Se recuerda la ruta: si el alta del reporte falla, el reintento no
+        // vuelve a subir la imagen.
+        await this.store.updateReport(reporte.id, { fotoRuta: ruta });
+        return ruta;
+    }
+
+    /**
      * Envía los reportes que aún no llegaron al servidor.
      * @returns {Promise<{enviados: number, pendientes: number, error?: string}>}
      */
@@ -68,6 +103,8 @@ export default class SincronizadorReportes {
 
             for (const reporte of porEnviar) {
                 try {
+                    const rutaFoto = await this.#subirFotoDe(reporte);
+
                     await rpc('crear_reporte', {
                         p_id: reporte.id,
                         p_categoria: reporte.categoria,
@@ -76,10 +113,9 @@ export default class SincronizadorReportes {
                         p_lat: reporte.lat ?? null,
                         p_lon: reporte.lon ?? null,
                         p_fecha: reporte.fecha ?? null,
+                        p_foto_ruta: rutaFoto,
                     });
 
-                    // La foto no se sube todavía: falta configurar Storage con
-                    // un bucket privado (una foto puede traer rostros o EXIF).
                     await this.store.updateReport(reporte.id, {
                         sincronizado: true,
                         sincronizadoEn: new Date().toISOString(),
@@ -93,9 +129,36 @@ export default class SincronizadorReportes {
                 }
             }
 
+            await this.#adjuntarFotosPendientes();
             return { enviados, pendientes: 0 };
         } finally {
             this.enCurso = false;
+        }
+    }
+
+    /**
+     * Sube las fotos de los reportes que ya se habían sincronizado antes de que
+     * existiera el bucket. Sin esto se quedarían sin imagen para siempre, y el
+     * moderador tendría que validar a ciegas.
+     */
+    async #adjuntarFotosPendientes() {
+        const rezagados = (await this.store.getAllReports()).filter(
+            (r) => r.sincronizado && !r.fotoRuta && r.foto instanceof Blob,
+        );
+
+        for (const reporte of rezagados) {
+            try {
+                const ruta = await this.#subirFotoDe(reporte);
+                if (!ruta) continue;
+
+                const adjuntada = await rpc('adjuntar_foto', { p_id: reporte.id, p_foto_ruta: ruta });
+                // Si el servidor dice que no (ya tenía foto, o ya fue moderado),
+                // no se vuelve a intentar: la marca local evita el bucle.
+                if (!adjuntada) await this.store.updateReport(reporte.id, { fotoRuta: ruta });
+            } catch (error) {
+                console.warn('No se pudo adjuntar la foto de', reporte.id, error.message);
+                return; // suele ser de red: se reintenta en la próxima vuelta
+            }
         }
     }
 

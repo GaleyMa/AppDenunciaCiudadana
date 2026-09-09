@@ -43,6 +43,7 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_cp_2_datos_1_de_6.sql` … `…_cp_7_datos_6_de_6.sql` | Los 231 polígonos, en 6 partes |
    | `…_cp_8_funciones.sql` | Derivación del CP y vista del mapa |
    | `…_listar_moderables.sql` | Candidatos de fusión para el panel (incluye validados) |
+   | `…_fotos.sql` | Bucket privado de fotos, políticas y `adjuntar_foto()` |
 
    > Los polígonos van partidos en seis archivos a propósito: el SQL Editor
    > rechaza peticiones grandes con **"Request Entity Too Large"**, y el archivo
@@ -150,8 +151,9 @@ puedan encadenar fusiones, y que los agregados cuenten solo reportes validados.
 - **Abuso en la captura anónima.** Hoy cualquiera con la anon key puede insertar
   reportes en volumen. Falta limitar por IP con una Edge Function o un captcha;
   no se resuelve con RLS.
-- **Fotos.** `foto_ruta` está previsto pero Storage no se configura todavía. El
-  bucket debe ser privado: una foto puede traer rostros, placas o EXIF con
-  ubicación.
+- **Fotos.** Ya funcionan: bucket `reportes-fotos` **privado**, con tope de
+  5 MB y solo tipos de imagen. Cualquiera puede subir (la app es anónima) pero
+  nadie puede leer sin ser moderador: el panel obtiene URLs firmadas que caducan
+  en una hora. Queda pendiente borrar la foto cuando un reporte se descarta.
 - **Vistas SECURITY DEFINER.** El linter de Supabase las marca. Aquí es
   intencional: es el mecanismo que permite agregar sin exponer la tabla.

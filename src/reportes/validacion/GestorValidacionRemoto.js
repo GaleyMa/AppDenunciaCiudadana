@@ -8,23 +8,25 @@
 // Las comprobaciones que quedan de este lado son solo para dar un mensaje claro
 // sin gastar un viaje de red.
 
-import { rpc } from '../api/SupabaseApi.js';
+import { rpc, firmarFotos } from '../api/SupabaseApi.js';
 import { MOTIVOS_DESCARTE } from './GestorValidacion.js';
 
 const MOTIVOS_VALIDOS = MOTIVOS_DESCARTE.map((m) => m.valor);
 
 /**
  * Traduce una fila del servidor a la forma que espera el panel.
- * La foto va en null: Storage todavía no está configurado, así que el panel
- * mostrará "Sin foto" en lugar de una miniatura.
+ *
+ * La foto no viaja como blob sino como URL firmada: el bucket es privado y
+ * cada enlace caduca en una hora.
  */
-const aReporte = (fila) => ({
+const aReporte = (fila, urlFoto = null) => ({
     id: fila.id,
     categoria: fila.categoria,
     ubicacion: fila.ubicacion_texto || fila.colonia || 'Sin ubicación',
     fecha: fila.fecha,
     estado: fila.estado,
     foto: null,
+    fotoUrl: urlFoto,
 });
 
 export default class GestorValidacionRemoto {
@@ -49,7 +51,14 @@ export default class GestorValidacionRemoto {
 
     async pendientes() {
         const filas = await this.#llamar('listar_pendientes', { p_limite: 50 });
-        return filas.map(aReporte);
+
+        // Las fotos se firman de una sola vez, no una petición por reporte.
+        const rutas = filas.map((f) => f.foto_ruta).filter(Boolean);
+        const firmadas = rutas.length
+            ? await firmarFotos(rutas, await this.sesion.token())
+            : new Map();
+
+        return filas.map((fila) => aReporte(fila, firmadas.get(fila.foto_ruta) ?? null));
     }
 
     async validar(id) {
@@ -77,6 +86,6 @@ export default class GestorValidacionRemoto {
      */
     async candidatosFusion(id) {
         const filas = await this.#llamar('listar_moderables', { p_limite: 100 });
-        return filas.filter((fila) => fila.id !== id).map(aReporte);
+        return filas.filter((fila) => fila.id !== id).map((fila) => aReporte(fila));
     }
 }

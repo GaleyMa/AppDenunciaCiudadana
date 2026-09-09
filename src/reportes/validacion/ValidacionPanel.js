@@ -148,12 +148,20 @@ export default function initValidacionPanel(contenedor, gestor) {
     const tarjetaReporte = (reporte) => {
         const tarjeta = crear('article', 'reporte');
 
+        // Dos orígenes posibles: el blob de IndexedDB (moderación local) o una
+        // URL firmada del bucket privado (moderación contra el servidor).
         const miniatura = crear('div', 'miniatura');
+        let fuente = null;
         if (reporte.foto instanceof Blob) {
-            const url = URL.createObjectURL(reporte.foto);
-            urlsMiniaturas.push(url);
+            fuente = URL.createObjectURL(reporte.foto);
+            urlsMiniaturas.push(fuente);
+        } else if (reporte.fotoUrl) {
+            fuente = reporte.fotoUrl;
+        }
+
+        if (fuente) {
             const img = document.createElement('img');
-            img.src = url;
+            img.src = fuente;
             img.alt = `Foto del reporte de ${etiquetaCategoria(reporte.categoria)}`;
             img.loading = 'lazy';
             miniatura.appendChild(img);
@@ -194,10 +202,21 @@ export default function initValidacionPanel(contenedor, gestor) {
         btnFusionar.addEventListener('click', async () => {
             const abierto = tarjeta.querySelector('.accion-detalle');
             abierto?.remove();
-            if (abierto?.dataset.tipo !== 'fusion') {
+            if (abierto?.dataset.tipo === 'fusion') return;
+
+            // Buscar los candidatos puede fallar (sin red, o una función que
+            // falta en el servidor). Sin este try, la promesa se rompía en
+            // silencio: el botón "no hacía nada" y no había forma de saber por
+            // qué.
+            btnFusionar.disabled = true;
+            try {
                 const caja = await formularioFusion(reporte, tarjeta);
                 caja.dataset.tipo = 'fusion';
                 tarjeta.appendChild(caja);
+            } catch (error) {
+                avisar(`No se pudieron cargar los reportes para fusionar: ${error.message}`, true);
+            } finally {
+                btnFusionar.disabled = false;
             }
         });
 
@@ -210,7 +229,20 @@ export default function initValidacionPanel(contenedor, gestor) {
     async function render() {
         liberarMiniaturas();
 
-        const pendientes = await gestor.pendientes();
+        let pendientes;
+        try {
+            pendientes = await gestor.pendientes();
+        } catch (error) {
+            contenedor.replaceChildren();
+            const fallo = crear('p', 'sin-datos',
+                `No se pudieron cargar los reportes: ${error.message}`);
+            const reintentar = crear('button', 'btn-secundario', 'Reintentar');
+            reintentar.type = 'button';
+            reintentar.addEventListener('click', render);
+            contenedor.append(fallo, reintentar);
+            return;
+        }
+
         // Más recientes primero: es el orden en que un moderador espera revisar.
         pendientes.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 

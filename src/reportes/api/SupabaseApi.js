@@ -4,7 +4,7 @@
 // llamadas fetch. El proyecto es de cero librerías en el cliente y esto lo
 // respeta sin perder nada.
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_STORAGE_URL, BUCKET_FOTOS } from '../../config.js';
 
 const TIEMPO_LIMITE = 12000;
 
@@ -32,7 +32,11 @@ async function pedir(url, opciones = {}) {
         if (!respuesta.ok) {
             // PostgREST devuelve {code, message, hint} en los errores.
             const detalle = await respuesta.json().catch(() => ({}));
-            throw new Error(detalle.message || `HTTP ${respuesta.status}`);
+            const fallo = new Error(detalle.message || detalle.error || `HTTP ${respuesta.status}`);
+            // El código importa: no es lo mismo "se cayó la red" (reintentar)
+            // que "este archivo no se acepta" (no insistir).
+            fallo.estado = respuesta.status;
+            throw fallo;
         }
 
         return respuesta.status === 204 ? null : respuesta.json();
@@ -64,3 +68,45 @@ export async function seleccionar(recurso, { columnas = '*', orden, limite } = {
 
 /** ¿Hay conexión? El navegador puede equivocarse, así que es solo una pista. */
 export const hayConexion = () => navigator.onLine !== false;
+
+/**
+ * Sube la foto de un reporte al bucket privado.
+ * Si el archivo ya estaba (reintento de la cola), el servidor responde 409 y
+ * se toma como éxito: la foto ya está donde debe.
+ */
+export async function subirFoto(ruta, blob) {
+    const respuesta = await fetch(`${SUPABASE_STORAGE_URL}/object/${BUCKET_FOTOS}/${ruta}`, {
+        method: 'POST',
+        headers: cabeceras({ 'Content-Type': blob.type || 'application/octet-stream' }),
+        body: blob,
+    });
+
+    if (respuesta.ok || respuesta.status === 409) return ruta;
+
+    const detalle = await respuesta.json().catch(() => ({}));
+    const fallo = new Error(detalle.message || detalle.error || `HTTP ${respuesta.status}`);
+    fallo.estado = respuesta.status;
+    throw fallo;
+}
+
+/**
+ * URLs temporales para ver las fotos. El bucket es privado: sin firma no hay
+ * imagen, y firmar exige una sesión de moderador.
+ * @returns {Promise<Map<string, string>>} ruta → URL firmada.
+ */
+export async function firmarFotos(rutas, token, segundos = 3600) {
+    if (!rutas.length) return new Map();
+
+    const respuesta = await fetch(`${SUPABASE_STORAGE_URL}/object/sign/${BUCKET_FOTOS}`, {
+        method: 'POST',
+        headers: cabeceras({ 'Content-Type': 'application/json' }, token),
+        body: JSON.stringify({ expiresIn: segundos, paths: rutas }),
+    });
+
+    if (!respuesta.ok) return new Map(); // sin fotos, pero el panel sigue vivo
+
+    const firmadas = await respuesta.json();
+    return new Map(firmadas
+        .filter((f) => f.signedURL)
+        .map((f) => [f.path, `${SUPABASE_STORAGE_URL}${f.signedURL}`]));
+}
