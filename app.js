@@ -8,7 +8,11 @@ import initReporteForm from './src/reportes/form/ReporteForm.js';
 import GestorValidacion from './src/reportes/validacion/GestorValidacion.js';
 import initValidacionPanel from './src/reportes/validacion/ValidacionPanel.js';
 import SincronizadorReportes from './src/reportes/sync/SincronizadorReportes.js';
+import initTableroPublico from './src/reportes/tablero/TableroPublico.js';
 import { TOKEN_PANEL, RUTA_PANEL } from './src/config.js';
+
+/** Ruta del tablero público. A diferencia del panel, esta no es secreta. */
+const RUTA_TABLERO = '#/tablero';
 
 // --- Service worker (offline-first) ---
 if ('serviceWorker' in navigator) {
@@ -41,13 +45,15 @@ initReporteForm(store, sincronizador);
 
 const vistaPublica = document.getElementById('vista-publica');
 const vistaPanel = document.getElementById('vista-panel');
+const vistaTablero = document.getElementById('vista-tablero');
 let panel = null;
+let tablero = null;
 
 // Si faltan los contenedores, el navegador está sirviendo un index.html viejo
 // desde el caché del service worker. Se avisa en vez de fallar en silencio.
-if (!vistaPublica || !vistaPanel) {
+if (!vistaPublica || !vistaPanel || !vistaTablero) {
     console.error(
-        'No se encontraron #vista-publica / #vista-panel. Seguramente el service '
+        'Faltan los contenedores de las vistas. Seguramente el service '
         + 'worker está sirviendo un index.html viejo: en DevTools → Application → '
         + 'Service Workers, marca "Update on reload" o pulsa Unregister y recarga.'
     );
@@ -60,23 +66,32 @@ function tokenDeLaUrl() {
 }
 
 function enrutar() {
-    if (!vistaPublica || !vistaPanel) return;
-
-    const autorizado = tokenDeLaUrl() === TOKEN_PANEL;
+    if (!vistaPublica || !vistaPanel || !vistaTablero) return;
 
     // Token ausente o incorrecto: se muestra la vista pública normal, sin
     // mensajes ni pistas de que exista un panel de moderación.
-    vistaPublica.hidden = autorizado;
-    vistaPanel.hidden = !autorizado;
+    const autorizado = tokenDeLaUrl() === TOKEN_PANEL;
+    const esTablero = window.location.hash === RUTA_TABLERO;
 
-    if (!autorizado) {
+    vistaPublica.hidden = autorizado || esTablero;
+    vistaPanel.hidden = !autorizado;
+    vistaTablero.hidden = !esTablero;
+
+    if (autorizado) {
+        if (panel) panel.render();
+        else panel = initValidacionPanel(vistaPanel, new GestorValidacion(store));
+    } else {
         vistaPanel.replaceChildren();
         panel = null;
-        return;
     }
 
-    if (panel) panel.render();
-    else panel = initValidacionPanel(vistaPanel, new GestorValidacion(store));
+    if (esTablero) {
+        if (tablero) tablero.render();
+        else tablero = initTableroPublico(vistaTablero);
+    } else {
+        vistaTablero.replaceChildren();
+        tablero = null;
+    }
 }
 
 window.addEventListener('hashchange', enrutar);

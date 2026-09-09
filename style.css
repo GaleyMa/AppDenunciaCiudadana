@@ -473,3 +473,208 @@ footer p {
 .panel-pie a {
     color: var(--verde);
 }
+
+/* ===== Tablero público (Incremento 3) ===== */
+
+.enlace-tablero {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+}
+
+.enlace-tablero a {
+    color: var(--verde);
+    font-weight: 600;
+}
+
+.fila-gps {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.fila-gps button {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.estado-gps {
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+}
+
+.estado-gps.gps-error {
+    color: var(--error);
+}
+
+.cargando,
+.aviso-cache {
+    padding: 12px;
+    text-align: center;
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+}
+
+.aviso-cache {
+    background-color: #fff8e6;
+    border-radius: 6px;
+    margin: 0 0 14px;
+}
+
+/* --- Números gruesos --- */
+
+.tarjetas {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.tarjeta-dato {
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.dato-valor {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--verde);
+}
+
+.dato-rotulo {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+/* --- Gráficas --- */
+
+.grafica,
+.mapa {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 6px;
+}
+
+.grafica-etiqueta {
+    font-size: 11px;
+}
+
+.grafica-valor {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.grafica-eje {
+    font-size: 10px;
+}
+
+.mapa path {
+    transition: opacity 0.1s;
+}
+
+.mapa path:hover {
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin: 4px 0 10px;
+    padding: 0;
+    list-style: none;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+
+.leyenda li {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.muestra {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Flota sobre la gráfica; se coloca desde JS. */
+.viz-tooltip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    background-color: #1f2328;
+    color: #fff;
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    max-width: 220px;
+}
+
+/* --- Tablas --- */
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.tabla th,
+.tabla td {
+    text-align: left;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--borde);
+}
+
+.tabla th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+}
+
+.tabla .numero {
+    text-align: right;
+    font-weight: 600;
+}
+
+.tabla-desplegable {
+    margin-top: 8px;
+    font-size: 0.85rem;
+}
+
+.tabla-desplegable summary {
+    cursor: pointer;
+    color: var(--verde);
+    padding: 6px 0;
+}
+
+.tabla-desplegable .tabla {
+    max-height: 260px;
+    overflow-y: auto;
+    display: block;
+}
+
+.nota {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+/* Valor de texto (no una cifra): más chico, para que quepa en la tarjeta. */
+.dato-valor.dato-texto {
+    font-size: 1rem;
+    line-height: 1.25;
+    padding-top: 2px;
+}

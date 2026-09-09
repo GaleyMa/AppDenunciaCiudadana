@@ -35,6 +35,9 @@
                 <li><strong>De todos:</strong> los datos se publican agregados, sin
                     dueño ni partido.</li>
             </ul>
+            <p class="enlace-tablero">
+                <a href="#/tablero">Ver el tablero de reportes de la ciudad →</a>
+            </p>
             <p class="aviso">
                 Esta app <strong>no es un servicio de emergencia</strong>. Si hay un
                 delito en curso o alguien está en peligro, llama al <strong>911</strong>.
@@ -93,6 +96,9 @@
     <!-- Panel de validación. Solo se llena si el hash de la URL trae el token
          correcto (ver src/config.js); si no, ni siquiera se muestra que existe. -->
     <div id="vista-panel" class="panel" hidden></div>
+
+    <!-- Tablero público de estadísticas (Incremento 3). Vive en #/tablero. -->
+    <div id="vista-tablero" class="panel" hidden></div>
 
     <script type="module" src="app.js"></script>
 </body>

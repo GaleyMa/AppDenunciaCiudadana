@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pruebas — Tablero público</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f0f0f0; }
+        li { margin: 4px 0; }
+        .ok { color: #0a7d33; }
+        .fail { color: #b00020; font-weight: bold; }
+        #resumen { font-size: 1.1rem; margin-top: 15px; }
+        iframe { width: 480px; height: 500px; border: 1px solid #ccc; background: #fff; }
+    </style>
+</head>
+
+<body>
+    <h1>Pruebas del tablero público</h1>
+    <p>Solo lee: consulta los agregados del proyecto de Supabase y dibuja el
+        tablero. No escribe nada ni toca tus reportes. Necesita conexión.</p>
+    <ul id="salida"></ul>
+    <p id="resumen"></p>
+    <div id="host"></div>
+
+    <script type="module">
+        const salida = document.getElementById('salida');
+        let pasadas = 0, fallidas = 0;
+        const comprobar = (condicion, texto) => {
+            condicion ? pasadas++ : fallidas++;
+            salida.insertAdjacentHTML('beforeend',
+                `<li class="${condicion ? 'ok' : 'fail'}">${condicion ? 'PASS' : 'FALLO'} — ${texto}</li>`);
+        };
+        const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const marco = document.createElement('iframe');
+        const cargado = new Promise((r) => marco.addEventListener('load', r));
+        marco.src = '../index.html#/tablero';
+        document.getElementById('host').appendChild(marco);
+        await cargado;
+
+        try {
+            const d = marco.contentDocument;
+            const tablero = d.getElementById('vista-tablero');
+
+            comprobar(!tablero.hidden, 'el tablero se muestra con #/tablero');
+            comprobar(d.getElementById('vista-publica').hidden, 'la vista pública se oculta');
+            comprobar(d.getElementById('vista-panel').hidden, 'el panel de moderación sigue oculto');
+
+            for (let i = 0; i < 30; i += 1) {
+                if (tablero.querySelector('.mapa, .sin-datos')) break;
+                await espera(600);
+            }
+            await espera(1500);
+
+            comprobar(tablero.querySelectorAll('.tarjeta-dato').length === 4, 'cuatro tarjetas de resumen');
+
+            const mapa = tablero.querySelector('.mapa');
+            comprobar(!!mapa, 'el mapa se dibujó');
+            comprobar(mapa && mapa.querySelectorAll('path').length > 30,
+                `el mapa pinta los polígonos del área urbana (${mapa ? mapa.querySelectorAll('path').length : 0})`);
+            comprobar(tablero.querySelectorAll('.leyenda li').length === 5, 'la leyenda tiene 5 escalones');
+            comprobar(!!tablero.querySelector('.tabla-desplegable'),
+                'el mapa trae tabla de respaldo: el color no es la única vía al dato');
+            comprobar(tablero.textContent.includes('no aparece en el mapa'),
+                'se advierte que un reporte sin ubicación no sale en el mapa');
+            comprobar(tablero.textContent.includes('no existe ningún dato de quien los levantó'),
+                'el pie recuerda que los reportes son anónimos');
+
+            // Nada de lo pintado puede traer datos individuales.
+            comprobar(!/coordenada|latitud|longitud/i.test(tablero.textContent),
+                'el tablero no muestra coordenadas por ningún lado');
+
+            marco.contentWindow.location.hash = '';
+            await espera(500);
+            comprobar(!d.getElementById('vista-publica').hidden && d.getElementById('vista-tablero').hidden,
+                'al salir del tablero vuelve el formulario');
+        } catch (error) {
+            comprobar(false, 'excepción inesperada: ' + error.message);
+        }
+
+        document.getElementById('resumen').textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
+        document.getElementById('resumen').className = fallidas ? 'fail' : 'ok';
+    </script>
+</body>
+
+</html>

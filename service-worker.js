@@ -1,4 +1,4 @@
-const CACHE_NAME = 'denuncia-v6';
+const CACHE_NAME = 'denuncia-v7';
 
 self.addEventListener('install', (event) => {
     console.log('Instalando el Service Worker...');
@@ -34,7 +34,15 @@ self.addEventListener('install', (event) => {
                     '/src/reportes/datos/categorias.js',
                     '/src/reportes/validacion/GestorValidacion.js',
                     '/src/reportes/validacion/ValidacionPanel.js',
-                    '/src/config.js'
+                    '/src/config.js',
+                    '/src/reportes/api/SupabaseApi.js',
+                    '/src/reportes/sync/SincronizadorReportes.js',
+                    '/src/reportes/form/CapturaGps.js',
+                    '/src/reportes/tablero/TableroPublico.js',
+                    '/src/reportes/tablero/graficas.js'
+                    // El GeoJSON de códigos postales (200 KB) NO va aquí: se
+                    // guarda en caché la primera vez que alguien abre el
+                    // tablero, para no cobrárselo a quien solo va a reportar.
                 ];
 
                 return cache.addAll(rutas.map((ruta) => new Request(ruta, { cache: 'reload' })));
@@ -63,19 +71,26 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    console.log('Manejo de la solicitud de:', event.request.url);
+    const url = new URL(event.request.url);
+
+    // Solo se gestiona lo propio. Las llamadas a Supabase van directas a la
+    // red: cachearlas serviría estadísticas viejas sin que nadie lo note.
+    if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+
     event.respondWith(
         caches.match(event.request)
-            .then((response) => {
-                if (response) {
-                    console.log('Respuesta de caché:', event.request.url);
-                    return response;
-                }
-                return fetch(event.request)
-                    .then((response) => {
-                        console.log('Respuesta de red:', event.request.url);
-                        return response;
-                    });
+            .then((respuesta) => {
+                if (respuesta) return respuesta;
+
+                return fetch(event.request).then((respuestaRed) => {
+                    // Se guarda lo que se pide por primera vez (por ejemplo el
+                    // GeoJSON del mapa), para que a la segunda funcione sin red.
+                    if (respuestaRed.ok) {
+                        const copia = respuestaRed.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copia));
+                    }
+                    return respuestaRed;
+                });
             })
     );
 });
