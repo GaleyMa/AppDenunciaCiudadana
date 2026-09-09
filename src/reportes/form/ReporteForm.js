@@ -8,12 +8,13 @@ import { ESTADOS } from '../store/ReporteStore.js';
 import initColoniaAutocomplete from './ColoniaAutocomplete.js';
 import COLONIAS_MEXICALI from '../datos/colonias-mexicali.js';
 import CATEGORIAS from '../datos/categorias.js';
+import solicitarUbicacion from './CapturaGps.js';
 
 /**
  * Conecta el formulario #reporte-form con el ReporteStore.
  * @param {ReporteStore} store instancia de la capa de persistencia.
  */
-export default function initReporteForm(store) {
+export default function initReporteForm(store, sincronizador = null) {
     const form = document.getElementById('reporte-form');
     if (!form) return; // la vista actual no tiene formulario (ej. el panel)
 
@@ -23,6 +24,14 @@ export default function initReporteForm(store) {
     const botonEnviar = document.getElementById('btn-enviar');
     const errorMsg = document.getElementById('error-msg');
     const exitoMsg = document.getElementById('exito-msg');
+    const botonUbicacion = document.getElementById('btn-ubicacion');
+    const estadoGps = document.getElementById('estado-gps');
+
+    // Coordenadas de la lectura de GPS, si la persona la autorizó. Se llama
+    // `coordenadas` y no `ubicacion` porque dentro del submit ya existe una
+    // const `ubicacion` con el texto del campo, y el nombre repetido la
+    // sombreaba: asignarle rompía el guardado.
+    let coordenadas = null;
 
     // Las categorías salen del catálogo compartido con el panel de validación,
     // para que no haya dos listas que se desincronicen.
@@ -51,6 +60,23 @@ export default function initReporteForm(store) {
         errorMsg.textContent = '';
     };
 
+    botonUbicacion?.addEventListener('click', async () => {
+        botonUbicacion.disabled = true;
+        estadoGps.textContent = 'Obteniendo ubicación…';
+        estadoGps.classList.remove('gps-error');
+
+        try {
+            coordenadas = await solicitarUbicacion();
+            estadoGps.textContent = `Ubicación lista (±${coordenadas.precision} m)`;
+        } catch (error) {
+            coordenadas = null;
+            estadoGps.textContent = error.message;
+            estadoGps.classList.add('gps-error');
+        } finally {
+            botonUbicacion.disabled = false;
+        }
+    });
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -75,6 +101,15 @@ export default function initReporteForm(store) {
             estado: ESTADOS.PENDIENTE,
             motivo: null,            // se llena al descartar (Incremento 2)
             refOriginal: null,       // se llena al fusionar (Incremento 2)
+
+            // Coordenadas para el mapa del tablero. Van al servidor, que
+            // deriva de ellas el código postal; el punto exacto no se publica.
+            lat: coordenadas?.lat ?? null,
+            lon: coordenadas?.lon ?? null,
+
+            // Offline-first: se guarda local y ya. El envío al servidor es
+            // otro paso, que puede ocurrir mucho después.
+            sincronizado: false,
         };
 
         botonEnviar.disabled = true;
@@ -83,6 +118,12 @@ export default function initReporteForm(store) {
             console.log('Reporte guardado con id:', id);
             mostrarExito('Reporte guardado');
             form.reset();
+            coordenadas = null;
+            estadoGps.textContent = '';
+
+            // El envío al servidor no bloquea la confirmación: si falla, el
+            // reporte ya está a salvo en el dispositivo y se reintenta luego.
+            sincronizador?.sincronizar().catch(() => { });
         } catch (error) {
             console.error('Error guardando el reporte:', error);
             mostrarError('No se pudo guardar el reporte. Intenta de nuevo.');

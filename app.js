@@ -7,6 +7,7 @@ import ReporteStore from './src/reportes/store/ReporteStore.js';
 import initReporteForm from './src/reportes/form/ReporteForm.js';
 import GestorValidacion from './src/reportes/validacion/GestorValidacion.js';
 import initValidacionPanel from './src/reportes/validacion/ValidacionPanel.js';
+import SincronizadorReportes from './src/reportes/sync/SincronizadorReportes.js';
 import { TOKEN_PANEL, RUTA_PANEL } from './src/config.js';
 
 // --- Service worker (offline-first) ---
@@ -28,7 +29,12 @@ if ('serviceWorker' in navigator) {
 // comparten esa misma conexión.
 const store = new ReporteStore();
 
-initReporteForm(store);
+// Empuja al servidor lo que aún no ha salido del dispositivo, y reintenta
+// cuando vuelva la conexión.
+const sincronizador = new SincronizadorReportes(store);
+sincronizador.iniciar();
+
+initReporteForm(store, sincronizador);
 
 // --- Ruteo: vista pública o panel de validación ---
 // Todo local: se compara el token del hash contra la constante. No hay red.
