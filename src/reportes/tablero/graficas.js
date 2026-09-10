@@ -8,8 +8,16 @@
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** Rampa secuencial de un solo tono, clara → oscura. Luminosidad monótona. */
-export const RAMPA = ['#e8f2ec', '#c2ddd0', '#93c4ae', '#2f8a68', '#0f5132'];
+/**
+ * Rampa secuencial de un solo tono, clara → oscura, con luminosidad monótona.
+ *
+ * Los escalones van más saturados que un coroplético sobre papel blanco: se
+ * pintan translúcidos ENCIMA del mapa base, y con tonos pálidos las zonas con
+ * pocos reportes se perdían entre las calles. El primer escalón no se usa como
+ * relleno —las zonas sin reportes se dejan sin pintar— pero se conserva para la
+ * leyenda y para el resto de las gráficas.
+ */
+export const RAMPA = ['#e8f2ec', '#9fd0b6', '#5cb28c', '#2f8a68', '#0f5132'];
 const SERIE = '#157347';
 const TINTA_TENUE = '#6b7280';
 const EJE = '#d8d4cb';
@@ -181,14 +189,14 @@ const colorDe = (valor, cortes) => {
  * @param {object} geojson colección de polígonos con propiedad `cp`.
  * @param {Map<number, number>} valores conteo por código postal.
  * @param {object} [opciones]
- * @param {object} [opciones.vialidades] calles principales, para orientarse.
+ * @param {object} [opciones.fondo] imagen base y su recuadro geográfico.
  * @param {(cp: number) => void} [opciones.alSeleccionar] al tocar una zona.
  */
-export function coropletico(geojson, valores, { vialidades = null, alSeleccionar = null } = {}) {
-    // El mapa se dibuja grande y se recorre dentro de su marco. Encogerlo para
-    // que quepa completo dejaba las colonias del centro del tamaño de un punto
-    // y los nombres de calle ilegibles.
-    const ANCHO = 760;
+export function coropletico(geojson, valores, { fondo = null, alSeleccionar = null } = {}) {
+    // El tamaño lo manda la imagen de fondo, que se dibuja a su resolución
+    // natural: encogerla volvía ilegibles los nombres de calle, que son
+    // justo lo que sirve para ubicarse. El mapa se recorre dentro de su marco.
+    const ANCHO = fondo?.ancho ?? 760;
     const maximo = Math.max(0, ...valores.values());
     const cortes = calcularCortes(maximo);
 
@@ -212,10 +220,15 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
     // Xochimilco, Villa del Rey, El Coloso—, que se dibujaban pero quedaban
     // recortadas. Descartar el 15% más grande evita que dos o tres ejidos
     // enormes estiren el mapa hasta el valle.
+    // Con imagen de fondo, el recuadro es EL DE LA IMAGEN: es la única forma de
+    // que las zonas caigan justo sobre sus calles. Sin ella se calcula igual
+    // que antes, por si el archivo no carga.
     const porArea = visibles.map((f) => [f, area(f)]).sort((a, b) => a[1] - b[1]);
     const urbanos = porArea.slice(0, Math.max(1, Math.ceil(porArea.length * 0.85))).map(([f]) => f);
 
-    const caja = limites(urbanos);
+    const caja = fondo
+        ? { minX: fondo.oeste, maxX: fondo.este, minY: fondo.sur, maxY: fondo.norte }
+        : limites(urbanos);
     // Corrección por latitud: sin ella la ciudad sale estirada a lo ancho.
     const escalaX = Math.cos((CENTRO.lat * Math.PI) / 180);
     const anchoGeo = (caja.maxX - caja.minX) * escalaX;
@@ -223,7 +236,7 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
 
     // El alto sale de la proporción real del terreno; el ancho es fijo.
     const k = ANCHO / anchoGeo;
-    const ALTO = Math.round(altoGeo * k);
+    const ALTO = fondo?.alto ?? Math.round(altoGeo * k);
 
     const proyecta = ([lon, lat]) => [
         ((lon - caja.minX) * escalaX * k).toFixed(1),
@@ -236,17 +249,28 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
         'aria-label': 'Mapa de reportes validados por código postal',
     });
 
+    // La imagen va al fondo de todo; las zonas se pintan encima translúcidas.
+    if (fondo?.imagen) {
+        const imagen = crear('image', {
+            href: fondo.imagen, x: 0, y: 0, width: ANCHO, height: ALTO,
+        });
+        svg.appendChild(imagen);
+    }
+
     const zonas = new Map();
 
     for (const rasgo of visibles) {
         const cp = rasgo.properties.cp;
         const valor = valores.get(cp) ?? 0;
+        // Las zonas sin reportes no se rellenan: dejan ver el mapa. Las que sí
+        // tienen van translúcidas, para que las calles se sigan leyendo debajo.
         const camino = crear('path', {
             d: aRuta(rasgo.geometry, proyecta),
-            fill: colorDe(valor, cortes),
-            // El borde es del color de la superficie: separa los polígonos sin
-            // dibujarles un contorno que compita con el dato.
-            stroke: '#ffffff', 'stroke-width': 0.8,
+            fill: valor ? colorDe(valor, cortes) : 'none',
+            'fill-opacity': valor ? 0.72 : 0,
+            stroke: valor ? '#ffffff' : '#9aa1a8',
+            'stroke-width': valor ? 1.2 : 0.6,
+            'stroke-opacity': valor ? 0.9 : 0.5,
             class: 'zona',
         });
         conTooltip(camino, `CP ${cp}: ${valor} ${valor === 1 ? 'reporte' : 'reportes'}`);
@@ -260,17 +284,15 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
         svg.appendChild(camino);
     }
 
-    // Las calles van ENCIMA de las zonas y debajo de las etiquetas: sirven para
-    // reconocer dónde está uno, no son un dato.
-    if (vialidades) dibujarVialidades(svg, vialidades, proyecta, ANCHO, ALTO);
-
     /** Resalta la zona elegida sin recargar el mapa. */
     const marcar = (cp) => {
         for (const [codigo, camino] of zonas) {
             const elegida = codigo === cp;
-            camino.setAttribute('stroke', elegida ? '#0f5132' : '#ffffff');
-            camino.setAttribute('stroke-width', elegida ? 2.6 : 0.8);
-            if (elegida) svg.insertBefore(camino, svg.querySelector('.vialidades'));
+            const tiene = (valores.get(codigo) ?? 0) > 0;
+            camino.setAttribute('stroke', elegida ? '#0f5132' : (tiene ? '#ffffff' : '#9aa1a8'));
+            camino.setAttribute('stroke-width', elegida ? 3 : (tiene ? 1.2 : 0.6));
+            camino.setAttribute('stroke-opacity', elegida ? 1 : (tiene ? 0.9 : 0.5));
+            if (elegida) svg.appendChild(camino);   // al frente
         }
     };
 
@@ -279,121 +301,6 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
     const [centroX, centroY] = proyecta([CENTRO.lon, CENTRO.lat]).map(Number);
 
     return { svg, cortes, maximo, marcar, centro: { x: centroX, y: centroY }, ancho: ANCHO, alto: ALTO };
-}
-
-/**
- * Las seis vialidades que cualquiera en Mexicali reconoce, con su nombre.
- *
- * Son pocas a propósito: dibujar todas las calles principales llenaba el mapa
- * de rayas grises que no ayudaban a ubicarse, competían con el dato y parecían
- * un trazo mal hecho. Para cambiar cuáles salen, se edita el archivo
- * datos/vialidades-mexicali.geojson.
- */
-function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
-    const grupo = crear('g', { class: 'vialidades' });
-    const etiquetas = crear('g', { class: 'nombres-via' });
-    const colocadas = [];
-
-    for (const via of [...vialidades.features].sort((a, b) => (b.properties.l ?? 0) - (a.properties.l ?? 0))) {
-        const tramos = via.geometry.type === 'LineString'
-            ? [via.geometry.coordinates] : via.geometry.coordinates;
-
-        const candidatos = [];
-
-        for (const tramo of tramos) {
-            const puntos = tramo.map(proyecta).map(([x, y]) => [Number(x), Number(y)]);
-            const d = `M${puntos.map((punto) => punto.join(',')).join('L')}`;
-
-            // Dos trazos: uno claro debajo que la separa del relleno de la
-            // zona, y encima la línea. Así se lee como una vialidad y no como
-            // una raya suelta.
-            grupo.appendChild(crear('path', {
-                d, fill: 'none', stroke: '#ffffff', 'stroke-width': 4.5,
-                'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9,
-            }));
-            grupo.appendChild(crear('path', {
-                d, fill: 'none', stroke: '#7c8894', 'stroke-width': 1.8,
-                'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-            }));
-
-            // Candidatos para el nombre: no solo pares de puntos seguidos,
-            // también tramos encadenados de hasta 8 vértices. Una avenida
-            // dividida en muchos segmentos cortos no tiene ni un solo trecho
-            // largo, y así se quedaba sin rotular aunque cruce media ciudad.
-            for (let i = 0; i < puntos.length - 1; i += 1) {
-                let recorrido = 0;
-
-                for (let j = i + 1; j < Math.min(i + 13, puntos.length); j += 1) {
-                    recorrido += Math.hypot(
-                        puntos[j][0] - puntos[j - 1][0], puntos[j][1] - puntos[j - 1][1]);
-
-                    const [x1, y1] = puntos[i];
-                    const [x2, y2] = puntos[j];
-                    const cuerda = Math.hypot(x2 - x1, y2 - y1);
-
-                    // Solo sirve si el tramo es casi recto: sobre una curva el
-                    // nombre girado se despega de la calle.
-                    if (cuerda > 0 && cuerda / recorrido > 0.93) {
-                        candidatos.push({ largo: cuerda, x1, y1, x2, y2 });
-                    }
-                }
-            }
-        }
-
-        // Se intenta rotular sobre el tramo recto más largo; si ahí no cabe o
-        // choca con otro nombre, se prueba el siguiente. Antes se descartaba la
-        // avenida entera y quedaban calles sin nombre.
-        candidatos.sort((a, b) => b.largo - a.largo);
-        // Ancho aproximado del texto: el tipo mide ~0.45 del alto por carácter.
-        const medio = (via.properties.nombre.length * 12 * 0.45) / 2;
-
-        // Se prueban varias posiciones A LO LARGO del tramo, empezando por el
-        // centro y abriéndose hacia los extremos. Antes solo se probaba el
-        // punto medio, y una carretera que entra al encuadre pegada al borde
-        // se quedaba sin nombre aunque hubiera espacio unos metros adentro.
-        const FRACCIONES = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82];
-        let rotulada = false;
-
-        // El umbral está en unidades del dibujo, donde 1 unidad ≈ 45 m: pide
-        // kilómetro y medio de tramo recto para colgarle el nombre.
-        for (const { largo, x1, y1, x2, y2 } of candidatos.slice(0, 60)) {
-            if (largo < 34 || rotulada) break;
-
-            let angulo = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-            if (angulo > 90) angulo -= 180;
-            if (angulo < -90) angulo += 180;
-
-            // El nombre va girado sobre la calle: uno vertical ocupa alto, no
-            // ancho. Sin esta cuenta, los de las avenidas norte-sur se cortaban
-            // contra el borde de abajo.
-            const radianes = (angulo * Math.PI) / 180;
-            const alcanceX = Math.abs(Math.cos(radianes)) * medio + 4;
-            const alcanceY = Math.abs(Math.sin(radianes)) * medio + 5;
-
-            for (const fraccion of FRACCIONES) {
-                const cx = x1 + (x2 - x1) * fraccion;
-                const cy = y1 + (y2 - y1) * fraccion;
-
-                if (cx - alcanceX < 3 || cx + alcanceX > ancho - 3) continue;
-                if (cy - alcanceY < 3 || cy + alcanceY > alto - 3) continue;
-
-                const choca = colocadas.some(([px, py, pAlcanceX, pAlcanceY]) =>
-                    Math.abs(px - cx) < alcanceX + pAlcanceX
-                    && Math.abs(py - cy) < alcanceY + pAlcanceY + 4);
-                if (choca) continue;
-
-                colocadas.push([cx, cy, alcanceX, alcanceY]);
-                etiquetas.appendChild(texto(via.properties.nombre, {
-                    x: cx, y: cy - 4, class: 'nombre-via', 'text-anchor': 'middle',
-                    transform: `rotate(${angulo.toFixed(1)} ${cx.toFixed(1)} ${cy.toFixed(1)})`,
-                }));
-                rotulada = true;
-                break;
-            }
-        }
-    }
-
-    svg.append(grupo, etiquetas);
 }
 
 /** Leyenda de la escala del mapa: el color solo no basta para leer un valor. */
@@ -413,7 +320,9 @@ export function leyendaMapa(cortes) {
         const fila = document.createElement('li');
         const muestra = document.createElement('span');
         muestra.className = 'muestra';
-        muestra.style.backgroundColor = RAMPA[i];
+        // El primer escalón no se rellena en el mapa: deja ver las calles.
+        if (i === 0) muestra.classList.add('muestra-vacia');
+        else muestra.style.backgroundColor = RAMPA[i];
         fila.append(muestra, document.createTextNode(rotulo));
         contenedor.appendChild(fila);
     });

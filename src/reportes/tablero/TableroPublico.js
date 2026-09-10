@@ -14,7 +14,8 @@ import { barrasHorizontales, serieTemporal, coropletico, leyendaMapa } from './g
 
 const CACHE = 'tablero_datos';
 const RUTA_GEOJSON = new URL('../datos/cp-mexicali.geojson', import.meta.url);
-const RUTA_VIALIDADES = new URL('../datos/vialidades-mexicali.geojson', import.meta.url);
+const RUTA_MARCO_MAPA = new URL('../datos/mapa-base-marco.json', import.meta.url);
+const RUTA_IMAGEN_MAPA = new URL('../datos/mapa-base-mexicali.webp', import.meta.url);
 
 /** Colonias de un código postal, del catálogo local. */
 const coloniasDe = (cp) => ASENTAMIENTOS_MEXICALI
@@ -218,7 +219,7 @@ export default function initTableroPublico(contenedor) {
     let geojson = null;
     let marcarZona = () => { };
 
-    let vialidades = null;
+    let fondoMapa = null;
 
     async function obtenerGeojson() {
         // Se piden solo al abrir el tablero: son cientos de KB que no tienen
@@ -227,13 +228,17 @@ export default function initTableroPublico(contenedor) {
         return geojson;
     }
 
-    async function obtenerVialidades() {
-        // Si las calles no cargan, el mapa se dibuja igual: son una ayuda para
-        // ubicarse, no el dato.
-        if (vialidades === null) {
-            vialidades = await fetch(RUTA_VIALIDADES).then((r) => r.json()).catch(() => false);
+    async function obtenerFondo() {
+        // Mapa base de OpenStreetMap, exportado una sola vez como imagen (ver
+        // herramientas/generar-mapa-base.py). Si no carga, el coroplético se
+        // dibuja igual, solo que sin calles debajo.
+        if (fondoMapa === null) {
+            fondoMapa = await fetch(RUTA_MARCO_MAPA)
+                .then((r) => r.json())
+                .then((marco) => ({ ...marco, imagen: String(RUTA_IMAGEN_MAPA) }))
+                .catch(() => false);
         }
-        return vialidades || null;
+        return fondoMapa || null;
     }
 
     async function pintar(datos, { desdeCache = false } = {}) {
@@ -263,8 +268,9 @@ export default function initTableroPublico(contenedor) {
         const hueco = crear('div', 'ficha-hueco');
 
         try {
+            const fondo = await obtenerFondo();
             const { svg, cortes, marcar, centro } = coropletico(await obtenerGeojson(), valores, {
-                vialidades: await obtenerVialidades(),
+                fondo,
                 alSeleccionar: (cp) => {
                     marcarZona(cp);
                     hueco.replaceChildren(fichaZona(cp, datos));
@@ -280,6 +286,12 @@ export default function initTableroPublico(contenedor) {
             const aviso = crear('p', 'nota-mapa', 'Desliza el mapa para recorrer la ciudad.');
             aviso.hidden = true;
             bloqueMapa.append(marco, aviso, leyendaMapa(cortes), hueco);
+
+            // Atribución obligatoria del mapa base.
+            if (fondo?.atribucion) {
+                bloqueMapa.appendChild(crear('p', 'atribucion',
+                    `Mapa base: ${fondo.atribucion} (CC BY-SA)`));
+            }
 
             requestAnimationFrame(() => {
                 // Se abre mirando al centro de Mexicali, no a una esquina del valle.

@@ -566,6 +566,11 @@ footer p {
    su marco es el que se desplaza. */
 .mapa-marco {
     overflow: auto;
+    /* Sin esto, el SVG de 1520 px impone su ancho mínimo al contenedor: en la
+       rejilla de escritorio la columna del mapa se estiraba y empujaba las
+       gráficas fuera de la pantalla. */
+    min-width: 0;
+    max-width: 100%;
     max-height: 340px;
     border: 1px solid var(--borde);
     border-radius: 8px;
@@ -630,6 +635,18 @@ footer p {
     height: 14px;
     border-radius: 3px;
     border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* "Sin reportes" no se pinta en el mapa: se deja ver el mapa base. */
+.muestra-vacia {
+    background-color: transparent;
+    border: 1px dashed #9aa1a8;
+}
+
+.atribucion {
+    margin: 6px 0 0;
+    font-size: 0.7rem;
+    color: var(--texto-suave);
 }
 
 /* Flota sobre la gráfica; se coloca desde JS. */
@@ -773,24 +790,14 @@ footer p {
 
 /* ===== Mapa: calles, zonas y ficha ===== */
 
-.nombre-via {
-    font-size: 12px;
-    font-weight: 600;
-    fill: #52514e;
-    /* Contorno del color del papel para que el nombre se lea sobre cualquier
-       tono de la rampa, sin recuadro que tape el dato. */
-    stroke: #fff;
-    stroke-width: 3.2px;
-    paint-order: stroke fill;
-    pointer-events: none;
-}
-
 .mapa .zona {
-    transition: opacity 0.1s;
+    transition: fill-opacity 0.1s;
+    /* Las zonas sin relleno también deben poder tocarse. */
+    pointer-events: all;
 }
 
 .mapa .zona:hover {
-    opacity: 0.75;
+    fill-opacity: 0.85;
 }
 
 .ficha-hueco:empty {
@@ -882,6 +889,9 @@ footer p {
 
     #vista-tablero .rejilla > .tarjeta {
         margin-bottom: 0;
+        /* Los elementos de una rejilla no se encogen por debajo de su
+           contenido a menos que se les diga. */
+        min-width: 0;
     }
 
     /* El mapa ocupa la columna ancha y toda la altura de la fila. */

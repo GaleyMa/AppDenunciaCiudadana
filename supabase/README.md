@@ -146,6 +146,23 @@ funcione y sea idempotente, que ninguna vista exponga coordenadas, que moderar
 exija sesión **y** alta de moderador, que descartar exija motivo, que no se
 puedan encadenar fusiones, y que los agregados cuenten solo reportes validados.
 
+## Mapa base
+
+El coroplético se dibuja encima de una imagen de OpenStreetMap exportada **una
+sola vez** con `herramientas/generar-mapa-base.py`. Así se ven todas las calles
+con su nombre sin cargar ninguna librería de mapas, sin depender de un servidor
+de mosaicos en tiempo de ejecución y sin perder el funcionamiento sin conexión.
+
+La imagen (180 KB) y su recuadro geográfico viven en `src/reportes/datos/`. Para
+regenerarla —por ejemplo si cambia el área que abarca el mapa—:
+
+```bash
+python3 herramientas/generar-mapa-base.py
+```
+
+**La atribución "© colaboradores de OpenStreetMap" es obligatoria** y ya aparece
+bajo el mapa. Los datos son ODbL y el estilo CC BY-SA.
+
 ## Pendientes conocidos
 
 - **Polígonos de colonias.** `colonias.geom` sigue vacío: el mapa usa códigos

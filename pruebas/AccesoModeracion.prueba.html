@@ -73,7 +73,11 @@
             d.getElementById('acceso-correo').value = 'nadie@ejemplo.invalido';
             d.getElementById('acceso-clave').value = 'contrasena-incorrecta';
             d.querySelector('.form-acceso').dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
-            await espera(2500);
+            // Es una llamada real al servidor: se espera a que responda en vez
+            // de dar por hecho que tarda menos de dos segundos.
+            for (let i = 0; i < 30 && !d.getElementById('acceso-error').textContent; i += 1) {
+                await espera(400);
+            }
             const error = d.getElementById('acceso-error').textContent;
             comprobar(/incorrect|confirmad|No se pudo/i.test(error), 'credenciales inválidas: "' + error + '"');
             comprobar(panel().querySelectorAll('.reporte').length === 0, 'tras fallar el acceso sigue sin haber panel');
