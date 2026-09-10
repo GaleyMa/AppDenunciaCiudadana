@@ -751,7 +751,7 @@ footer p {
 /* ===== Mapa: calles, zonas y ficha ===== */
 
 .nombre-via {
-    font-size: 7px;
+    font-size: 7.5px;
     font-weight: 600;
     fill: #52514e;
     /* Contorno del color del papel para que el nombre se lea sobre cualquier

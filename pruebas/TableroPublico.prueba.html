@@ -66,11 +66,17 @@
 
             // --- Calles y selección de zona ---
             const calles = mapa && mapa.querySelectorAll('.vialidades path');
-            comprobar(calles && calles.length > 50,
-                `el mapa dibuja las calles principales (${calles ? calles.length : 0} tramos)`);
-            const nombres = mapa && [...mapa.querySelectorAll('.nombre-via')].map((n) => n.textContent);
-            comprobar(nombres && nombres.length > 0 && nombres.length <= 7,
-                `rotula unas pocas vialidades: ${nombres ? nombres.join(' / ') : '-'}`);
+            comprobar(calles && calles.length > 20,
+                `el mapa dibuja las vialidades de referencia (${calles ? calles.length : 0} trazos)`);
+            const nombres = mapa ? [...mapa.querySelectorAll('.nombre-via')].map((n) => n.textContent) : [];
+            const esperadas = ['Blvd. Lázaro Cárdenas', 'Carr. a Tijuana', 'Carr. a San Felipe',
+                'Av. Carranza', 'Calz. Independencia', 'Av. Cristóbal Colón'];
+            const faltantes = esperadas.filter((v) => !nombres.includes(v));
+            comprobar(faltantes.length === 0,
+                faltantes.length ? `faltan vialidades por rotular: ${faltantes.join(', ')}`
+                    : `rotula las seis vialidades de referencia: ${nombres.join(' / ')}`);
+            comprobar(nombres.length === esperadas.length,
+                `no rotula de más: ${nombres.length} nombres en el mapa`);
 
             const zona = tablero.querySelector('.mapa .zona');
             zona.dispatchEvent(new marco.contentWindow.MouseEvent('click', { bubbles: true }));

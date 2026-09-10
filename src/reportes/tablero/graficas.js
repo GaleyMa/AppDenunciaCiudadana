@@ -273,83 +273,113 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
     return { svg, cortes, maximo, marcar };
 }
 
-/** Calles principales y sus nombres, para ubicarse en el mapa. */
+/**
+ * Las seis vialidades que cualquiera en Mexicali reconoce, con su nombre.
+ *
+ * Son pocas a propósito: dibujar todas las calles principales llenaba el mapa
+ * de rayas grises que no ayudaban a ubicarse, competían con el dato y parecían
+ * un trazo mal hecho. Para cambiar cuáles salen, se edita el archivo
+ * datos/vialidades-mexicali.geojson.
+ */
 function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
     const grupo = crear('g', { class: 'vialidades' });
     const etiquetas = crear('g', { class: 'nombres-via' });
     const colocadas = [];
 
-    // Ordenadas de más larga a más corta: si hay que descartar etiquetas por
-    // encimarse, que sobrevivan las avenidas que más estructuran la ciudad.
-    const ordenadas = [...vialidades.features].sort(
-        (a, b) => (b.properties.l ?? 0) - (a.properties.l ?? 0));
-
-    for (const via of ordenadas) {
+    for (const via of [...vialidades.features].sort((a, b) => (b.properties.l ?? 0) - (a.properties.l ?? 0))) {
         const tramos = via.geometry.type === 'LineString'
             ? [via.geometry.coordinates] : via.geometry.coordinates;
 
-        let masLargo = null;
-        let largoMax = 0;
+        const candidatos = [];
 
         for (const tramo of tramos) {
             const puntos = tramo.map(proyecta).map(([x, y]) => [Number(x), Number(y)]);
+            const d = `M${puntos.map((punto) => punto.join(',')).join('L')}`;
+
+            // Dos trazos: uno claro debajo que la separa del relleno de la
+            // zona, y encima la línea. Así se lee como una vialidad y no como
+            // una raya suelta.
             grupo.appendChild(crear('path', {
-                d: `M${puntos.map((p) => p.join(',')).join('L')}`,
-                fill: 'none', stroke: '#9aa1a8', 'stroke-width': 0.7,
+                d, fill: 'none', stroke: '#ffffff', 'stroke-width': 2.6,
+                'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9,
+            }));
+            grupo.appendChild(crear('path', {
+                d, fill: 'none', stroke: '#7c8894', 'stroke-width': 1.1,
                 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
             }));
 
-            // Se busca el segmento recto más largo, que es donde el nombre cabe
-            // sin doblarse.
+            // Candidatos para el nombre: no solo pares de puntos seguidos,
+            // también tramos encadenados de hasta 8 vértices. Una avenida
+            // dividida en muchos segmentos cortos no tiene ni un solo trecho
+            // largo, y así se quedaba sin rotular aunque cruce media ciudad.
             for (let i = 0; i < puntos.length - 1; i += 1) {
-                const [x1, y1] = puntos[i];
-                const [x2, y2] = puntos[i + 1];
-                const largo = Math.hypot(x2 - x1, y2 - y1);
-                if (largo > largoMax) {
-                    largoMax = largo;
-                    masLargo = [puntos[i], puntos[i + 1]];
+                let recorrido = 0;
+
+                for (let j = i + 1; j < Math.min(i + 9, puntos.length); j += 1) {
+                    recorrido += Math.hypot(
+                        puntos[j][0] - puntos[j - 1][0], puntos[j][1] - puntos[j - 1][1]);
+
+                    const [x1, y1] = puntos[i];
+                    const [x2, y2] = puntos[j];
+                    const cuerda = Math.hypot(x2 - x1, y2 - y1);
+
+                    // Solo sirve si el tramo es casi recto: sobre una curva el
+                    // nombre girado se despega de la calle.
+                    if (cuerda > 0 && cuerda / recorrido > 0.93) {
+                        candidatos.push({ largo: cuerda, x1, y1, x2, y2 });
+                    }
                 }
             }
         }
 
-        if (!masLargo || largoMax < 42 || etiquetas.childElementCount >= 7) continue;
-
-        const [[x1, y1], [x2, y2]] = masLargo;
-        const cx = (x1 + x2) / 2;
-        const cy = (y1 + y2) / 2;
-
-        // Ancho aproximado del texto en unidades del viewBox, para no colocar
-        // nombres que se salgan del marco ni se encimen entre sí. Medir de
-        // verdad exigiría tener el SVG ya en pantalla.
+        // Se intenta rotular sobre el tramo recto más largo; si ahí no cabe o
+        // choca con otro nombre, se prueba el siguiente. Antes se descartaba la
+        // avenida entera y quedaban calles sin nombre.
+        candidatos.sort((a, b) => b.largo - a.largo);
         const medio = (via.properties.nombre.length * 3.3) / 2;
 
-        let angulo = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-        if (angulo > 90) angulo -= 180;
-        if (angulo < -90) angulo += 180;
+        // Se prueban varias posiciones A LO LARGO del tramo, empezando por el
+        // centro y abriéndose hacia los extremos. Antes solo se probaba el
+        // punto medio, y una carretera que entra al encuadre pegada al borde
+        // se quedaba sin nombre aunque hubiera espacio unos metros adentro.
+        const FRACCIONES = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82];
+        let rotulada = false;
 
-        // El nombre va girado sobre la calle: uno vertical ocupa alto, no
-        // ancho. Sin esta cuenta, los de las avenidas norte-sur se cortaban
-        // contra el borde de abajo.
-        const radianes = (angulo * Math.PI) / 180;
-        const alcanceX = Math.abs(Math.cos(radianes)) * medio + 4;
-        const alcanceY = Math.abs(Math.sin(radianes)) * medio + 5;
+        for (const { largo, x1, y1, x2, y2 } of candidatos.slice(0, 40)) {
+            if (largo < 20 || rotulada) break;
 
-        if (cx - alcanceX < 3 || cx + alcanceX > ancho - 3) continue;
-        if (cy - alcanceY < 3 || cy + alcanceY > alto - 3) continue;
+            let angulo = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+            if (angulo > 90) angulo -= 180;
+            if (angulo < -90) angulo += 180;
 
-        // Dos nombres solo conviven si no se pisan sus recuadros.
-        const chocan = colocadas.some(([px, py, palcanceX, palcanceY]) =>
-            Math.abs(px - cx) < alcanceX + palcanceX
-            && Math.abs(py - cy) < alcanceY + palcanceY + 4);
-        if (chocan) continue;
+            // El nombre va girado sobre la calle: uno vertical ocupa alto, no
+            // ancho. Sin esta cuenta, los de las avenidas norte-sur se cortaban
+            // contra el borde de abajo.
+            const radianes = (angulo * Math.PI) / 180;
+            const alcanceX = Math.abs(Math.cos(radianes)) * medio + 4;
+            const alcanceY = Math.abs(Math.sin(radianes)) * medio + 5;
 
-        colocadas.push([cx, cy, alcanceX, alcanceY]);
+            for (const fraccion of FRACCIONES) {
+                const cx = x1 + (x2 - x1) * fraccion;
+                const cy = y1 + (y2 - y1) * fraccion;
 
-        const nombre = texto(via.properties.nombre, {
-            x: cx, y: cy - 2, class: 'nombre-via', 'text-anchor': 'middle',
-            transform: `rotate(${angulo.toFixed(1)} ${cx.toFixed(1)} ${cy.toFixed(1)})`,
-        });
-        etiquetas.appendChild(nombre);
+                if (cx - alcanceX < 3 || cx + alcanceX > ancho - 3) continue;
+                if (cy - alcanceY < 3 || cy + alcanceY > alto - 3) continue;
+
+                const choca = colocadas.some(([px, py, pAlcanceX, pAlcanceY]) =>
+                    Math.abs(px - cx) < alcanceX + pAlcanceX
+                    && Math.abs(py - cy) < alcanceY + pAlcanceY + 4);
+                if (choca) continue;
+
+                colocadas.push([cx, cy, alcanceX, alcanceY]);
+                etiquetas.appendChild(texto(via.properties.nombre, {
+                    x: cx, y: cy - 2.5, class: 'nombre-via', 'text-anchor': 'middle',
+                    transform: `rotate(${angulo.toFixed(1)} ${cx.toFixed(1)} ${cy.toFixed(1)})`,
+                }));
+                rotulada = true;
+                break;
+            }
+        }
     }
 
     svg.append(grupo, etiquetas);
