@@ -28,32 +28,79 @@ export default class SincronizadorReportes {
     async #obtenerColonias() {
         if (this.colonias) return this.colonias;
 
-        const filas = await seleccionar('colonias', { columnas: 'id,nombre' });
-        this.colonias = filas.map((c) => ({ id: c.id, normalizado: normalizar(c.nombre) }));
+        // Mientras la migración del catálogo no esté aplicada, la columna
+        // codigo_postal no existe y el servidor responde 42703. Se reintenta
+        // sin ella para que la sincronización no se detenga por eso.
+        let filas;
+        try {
+            filas = await seleccionar('colonias', { columnas: 'id,nombre,codigo_postal', limite: 2000 });
+        } catch (error) {
+            if (!/42703|does not exist/i.test(error.message)) throw error;
+            console.warn('El servidor aún no tiene el catálogo con código postal.');
+            filas = await seleccionar('colonias', { columnas: 'id,nombre', limite: 2000 });
+        }
+
+        this.colonias = filas.map((c) => ({
+            id: c.id, normalizado: normalizar(c.nombre), cp: c.codigo_postal ?? null,
+        }));
         return this.colonias;
     }
 
     /**
-     * Traduce el texto libre de ubicación a un colonia_id.
-     * Coincidencia exacta primero; si no, la colonia más larga que aparezca
-     * dentro del texto ("Nueva, calle Mérida 120" → Nueva). Si nada casa,
-     * devuelve null: el reporte se guarda sin colonia antes que con una mal
-     * adivinada.
+     * Encuentra el colonia_id del servidor.
+     *
+     * Si la persona eligió un asentamiento del catálogo, la pareja
+     * nombre + código postal lo identifica sin ambigüedad — y hace falta,
+     * porque hay nombres repetidos en distintos códigos postales ("Nueva"
+     * existe en varios).
+     *
+     * Si escribió texto libre, se busca el asentamiento más largo contenido en
+     * él ("Nueva, calle Mérida 120" → Nueva). Si nada casa, devuelve null: vale
+     * más un reporte sin colonia que con una mal adivinada.
      */
-    async #coloniaId(texto) {
-        if (!texto) return null;
-
+    async #coloniaId(reporte) {
         const colonias = await this.#obtenerColonias();
+
+        if (reporte.asentamiento && reporte.codigoPostal) {
+            const elegida = colonias.find((c) => c.cp === reporte.codigoPostal
+                && c.normalizado === normalizar(reporte.asentamiento));
+            if (elegida) return elegida.id;
+        }
+
+        const texto = reporte.ubicacion;
+        if (!texto) return null;
         const buscado = normalizar(texto);
 
         const exacta = colonias.find((c) => c.normalizado === buscado);
         if (exacta) return exacta.id;
 
         const contenidas = colonias
-            .filter((c) => buscado.includes(c.normalizado))
+            .filter((c) => c.normalizado.length >= 4 && buscado.includes(c.normalizado))
             .sort((a, b) => b.normalizado.length - a.normalizado.length);
 
         return contenidas.length ? contenidas[0].id : null;
+    }
+
+    /**
+     * Registra el reporte en el servidor.
+     *
+     * Si el proyecto todavía no tiene la migración del código postal declarado,
+     * PostgREST responde que no encuentra la función con esos parámetros. En
+     * ese caso se reintenta sin el CP, para que la captura siga funcionando
+     * mientras la migración se aplica.
+     */
+    async #registrar(datos) {
+        try {
+            return await rpc('crear_reporte', datos);
+        } catch (error) {
+            if (!/PGRST202|Could not find the function|no matches were found/i.test(error.message)) {
+                throw error;
+            }
+
+            console.warn('El servidor aún no acepta el código postal declarado; se envía sin él.');
+            const { p_codigo_postal, ...sinCp } = datos;
+            return rpc('crear_reporte', sinCp);
+        }
     }
 
     /**
@@ -105,15 +152,16 @@ export default class SincronizadorReportes {
                 try {
                     const rutaFoto = await this.#subirFotoDe(reporte);
 
-                    await rpc('crear_reporte', {
+                    await this.#registrar({
                         p_id: reporte.id,
                         p_categoria: reporte.categoria,
-                        p_colonia_id: await this.#coloniaId(reporte.ubicacion),
+                        p_colonia_id: await this.#coloniaId(reporte),
                         p_ubicacion_texto: reporte.ubicacion ?? null,
                         p_lat: reporte.lat ?? null,
                         p_lon: reporte.lon ?? null,
                         p_fecha: reporte.fecha ?? null,
                         p_foto_ruta: rutaFoto,
+                        p_codigo_postal: reporte.codigoPostal ?? null,
                     });
 
                     await this.store.updateReport(reporte.id, {
@@ -140,6 +188,11 @@ export default class SincronizadorReportes {
      * Sube las fotos de los reportes que ya se habían sincronizado antes de que
      * existiera el bucket. Sin esto se quedarían sin imagen para siempre, y el
      * moderador tendría que validar a ciegas.
+     *
+     * OJO: solo puede reparar los reportes cuya foto sigue en ESTE dispositivo.
+     * Un reporte levantado en otro navegador (o en otro origen, que para
+     * IndexedDB es otro sitio) no tiene aquí su imagen y no hay de dónde
+     * sacarla.
      */
     async #adjuntarFotosPendientes() {
         const rezagados = (await this.store.getAllReports()).filter(

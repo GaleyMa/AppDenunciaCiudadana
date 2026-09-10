@@ -6,7 +6,7 @@
 
 import { ESTADOS } from '../store/ReporteStore.js';
 import initColoniaAutocomplete from './ColoniaAutocomplete.js';
-import COLONIAS_MEXICALI from '../datos/colonias-mexicali.js';
+import ASENTAMIENTOS_MEXICALI from '../datos/asentamientos-mexicali.js';
 import CATEGORIAS from '../datos/categorias.js';
 import solicitarUbicacion from './CapturaGps.js';
 
@@ -26,12 +26,17 @@ export default function initReporteForm(store, sincronizador = null) {
     const exitoMsg = document.getElementById('exito-msg');
     const botonUbicacion = document.getElementById('btn-ubicacion');
     const estadoGps = document.getElementById('estado-gps');
+    const estadoCp = document.getElementById('estado-cp');
 
     // Coordenadas de la lectura de GPS, si la persona la autorizó. Se llama
     // `coordenadas` y no `ubicacion` porque dentro del submit ya existe una
     // const `ubicacion` con el texto del campo, y el nombre repetido la
     // sombreaba: asignarle rompía el guardado.
     let coordenadas = null;
+
+    // Asentamiento elegido del catálogo, con su código postal. Es lo que
+    // permite ubicar el reporte en el mapa cuando no hay GPS.
+    let asentamiento = null;
 
     // Las categorías salen del catálogo compartido con el panel de validación,
     // para que no haya dos listas que se desincronicen.
@@ -42,12 +47,17 @@ export default function initReporteForm(store, sincronizador = null) {
         selectCategoria.appendChild(opcion);
     }
 
-    // Sugerencias de colonia mientras se escribe. El campo sigue aceptando
-    // texto libre: la lista solo ahorra tecleo y unifica la escritura.
+    // Sugerencias mientras se escribe, por nombre o por código postal. El campo
+    // sigue aceptando texto libre: quien no encuentre su colonia puede escribir
+    // la calle o el cruce, solo que ese reporte no podrá ubicarse en el mapa.
     initColoniaAutocomplete(
         inputUbicacion,
         document.getElementById('lista-colonias'),
-        COLONIAS_MEXICALI,
+        ASENTAMIENTOS_MEXICALI,
+        (opcion) => {
+            asentamiento = opcion;
+            estadoCp.textContent = opcion ? `CP ${opcion.cp} · ${opcion.t}` : '';
+        },
     );
 
     const mostrarError = (texto) => {
@@ -107,6 +117,11 @@ export default function initReporteForm(store, sincronizador = null) {
             lat: coordenadas?.lat ?? null,
             lon: coordenadas?.lon ?? null,
 
+            // Código postal del catálogo. Sirve para el mapa cuando no hubo
+            // GPS; si lo hubo, manda lo que digan las coordenadas.
+            codigoPostal: asentamiento?.cp ?? null,
+            asentamiento: asentamiento?.n ?? null,
+
             // Offline-first: se guarda local y ya. El envío al servidor es
             // otro paso, que puede ocurrir mucho después.
             sincronizado: false,
@@ -119,7 +134,9 @@ export default function initReporteForm(store, sincronizador = null) {
             mostrarExito('Reporte guardado');
             form.reset();
             coordenadas = null;
+            asentamiento = null;
             estadoGps.textContent = '';
+            estadoCp.textContent = '';
 
             // El envío al servidor no bloquea la confirmación: si falla, el
             // reporte ya está a salvo en el dispositivo y se reintenta luego.

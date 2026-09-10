@@ -717,3 +717,33 @@ footer p {
     flex-direction: column;
     margin-top: 14px;
 }
+
+/* Código postal del asentamiento elegido, y detalle en las sugerencias. */
+.estado-cp {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--verde);
+}
+
+.estado-cp:not(:empty) {
+    background-color: #e8f3ec;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+
+.sugerencias li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.detalle-opcion {
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+
+.sugerencias li.activa .detalle-opcion {
+    color: var(--verde);
+}

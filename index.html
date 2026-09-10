@@ -54,7 +54,7 @@
                 </div>
 
                 <div class="campo">
-                    <label for="reporte-ubicacion">Colonia o ubicación</label>
+                    <label for="reporte-ubicacion">Colonia o código postal</label>
                     <!-- Autocompletado propio (ver ColoniaAutocomplete.js). El campo
                          acepta texto libre: si tu colonia no aparece, escríbela igual. -->
                     <div class="autocompletar">
@@ -62,15 +62,16 @@
                             autocomplete="off" role="combobox" aria-expanded="false"
                             aria-controls="lista-colonias" aria-autocomplete="list">
                         <ul id="lista-colonias" class="sugerencias" role="listbox"
-                            aria-label="Colonias de Mexicali" hidden></ul>
+                            aria-label="Asentamientos de Mexicali" hidden></ul>
                     </div>
+                    <span id="estado-cp" class="estado-cp"></span>
                     <div class="fila-gps">
                         <button type="button" id="btn-ubicacion" class="btn-secundario">Usar mi ubicación</button>
                         <span id="estado-gps" class="estado-gps"></span>
                     </div>
-                    <small>Puedes agregar la calle o el cruce más cercano. La ubicación
-                        es opcional: sirve para ubicar el reporte en el mapa y
-                        <strong>nunca se publica el punto exacto</strong>.</small>
+                    <small>Escribe tu colonia o tu código postal y elígela de la lista:
+                        así el reporte aparece en el mapa aunque no des tu ubicación.
+                        El punto exacto <strong>nunca se publica</strong>.</small>
                 </div>
 
                 <div class="campo">

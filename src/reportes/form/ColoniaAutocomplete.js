@@ -4,8 +4,11 @@
 // apariencia y su comportamiento cambian mucho entre navegadores móviles;
 // aquí controlamos el marcado, el estilo y el teclado.
 //
-// Responsabilidad única: sugerir texto en un input. No sabe de reportes ni de
-// IndexedDB; recibe la lista de opciones por parámetro.
+// Responsabilidad única: sugerir asentamientos en un input. No sabe de reportes
+// ni de IndexedDB; recibe el catálogo por parámetro.
+//
+// Cada opción es { n: nombre, cp: código postal, t: tipo }. Se puede buscar por
+// nombre o tecleando el código postal.
 
 const MAX_SUGERENCIAS = 8;
 
@@ -19,18 +22,27 @@ function normalizar(texto) {
 }
 
 /**
- * Filtra las opciones que contienen lo escrito, poniendo primero las que
- * empiezan con ese texto (escribir "nu" ofrece "Nueva" antes que "Santo Niño").
+ * Filtra el catálogo por nombre o por código postal.
+ *
+ * Si lo escrito son puros dígitos se busca por CP (teclear "21100" lista los
+ * asentamientos de ese código); si no, por nombre, poniendo primero los que
+ * empiezan con ese texto ("nu" ofrece "Nueva" antes que "Santo Niño").
  */
 function filtrar(opciones, escrito) {
     const buscado = normalizar(escrito);
     if (!buscado) return [];
 
+    if (/^\d{2,5}$/.test(buscado)) {
+        return opciones
+            .filter((opcion) => String(opcion.cp).startsWith(buscado))
+            .slice(0, MAX_SUGERENCIAS);
+    }
+
     const empiezan = [];
     const contienen = [];
 
     for (const opcion of opciones) {
-        const normalizada = normalizar(opcion);
+        const normalizada = normalizar(opcion.n);
         if (normalizada.startsWith(buscado)) empiezan.push(opcion);
         else if (normalizada.includes(buscado)) contienen.push(opcion);
     }
@@ -42,9 +54,11 @@ function filtrar(opciones, escrito) {
  * Conecta un input de texto con una lista de sugerencias.
  * @param {HTMLInputElement} input campo donde se escribe.
  * @param {HTMLElement} lista <ul> donde se pintan las sugerencias.
- * @param {string[]} opciones catálogo a sugerir.
+ * @param {Array<{n: string, cp: number, t: string}>} opciones catálogo.
+ * @param {(opcion: object|null) => void} [alElegir] avisa qué se seleccionó, o
+ *        null cuando el texto deja de corresponder a una opción del catálogo.
  */
-export default function initColoniaAutocomplete(input, lista, opciones) {
+export default function initColoniaAutocomplete(input, lista, opciones, alElegir = null) {
     if (!input || !lista) return;
 
     let visibles = [];
@@ -75,25 +89,41 @@ export default function initColoniaAutocomplete(input, lista, opciones) {
         }
     };
 
-    const elegir = (colonia) => {
-        input.value = colonia;
+    const elegir = (opcion) => {
+        input.value = opcion.n;
         cerrar();
         input.focus();
+        alElegir?.(opcion);
     };
 
     const abrir = () => {
         visibles = filtrar(opciones, input.value);
 
-        // Si lo escrito ya coincide exacto con una colonia, no tiene caso
+        // Si lo escrito ya coincide exacto con un asentamiento, no tiene caso
         // seguir mostrando el desplegable.
-        if (!visibles.length || (visibles.length === 1 && normalizar(visibles[0]) === normalizar(input.value))) {
+        if (!visibles.length || (visibles.length === 1 && normalizar(visibles[0].n) === normalizar(input.value))) {
             cerrar();
             return;
         }
 
-        lista.innerHTML = visibles
-            .map((colonia, i) => `<li id="colonia-${i}" role="option" aria-selected="false">${colonia}</li>`)
-            .join('');
+        // textContent en cada parte, no innerHTML con los datos dentro: el
+        // catálogo es de confianza, pero la costumbre evita sustos.
+        lista.replaceChildren(...visibles.map((opcion, i) => {
+            const fila = document.createElement('li');
+            fila.id = `colonia-${i}`;
+            fila.setAttribute('role', 'option');
+            fila.setAttribute('aria-selected', 'false');
+
+            const nombre = document.createElement('strong');
+            nombre.textContent = opcion.n;
+
+            const detalle = document.createElement('span');
+            detalle.className = 'detalle-opcion';
+            detalle.textContent = `CP ${opcion.cp} · ${opcion.t}`;
+
+            fila.append(nombre, detalle);
+            return fila;
+        }));
         lista.hidden = false;
         input.setAttribute('aria-expanded', 'true');
         resaltar(-1);
@@ -132,9 +162,16 @@ export default function initColoniaAutocomplete(input, lista, opciones) {
     // lista antes de registrar la selección.
     lista.addEventListener('mousedown', (event) => {
         event.preventDefault();
-        const opcion = event.target.closest('li');
-        if (opcion) elegir(opcion.textContent);
+        const fila = event.target.closest('li');
+        if (!fila) return;
+
+        const indice = [...lista.children].indexOf(fila);
+        if (indice >= 0) elegir(visibles[indice]);
     });
+
+    // Si se sigue tecleando, lo elegido antes deja de valer: el texto ya no
+    // corresponde a ese asentamiento y su código postal tampoco.
+    input.addEventListener('input', () => alElegir?.(null));
 
     input.addEventListener('blur', cerrar);
     // Si el formulario se resetea tras guardar, la lista no debe quedar abierta.

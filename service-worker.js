@@ -1,4 +1,4 @@
-const CACHE_NAME = 'denuncia-v9';
+const CACHE_NAME = 'denuncia-v10';
 
 self.addEventListener('install', (event) => {
     console.log('Instalando el Service Worker...');
@@ -30,7 +30,7 @@ self.addEventListener('install', (event) => {
                     '/src/reportes/store/ReporteStore.js',
                     '/src/reportes/form/ReporteForm.js',
                     '/src/reportes/form/ColoniaAutocomplete.js',
-                    '/src/reportes/datos/colonias-mexicali.js',
+                    '/src/reportes/datos/asentamientos-mexicali.js',
                     '/src/reportes/datos/categorias.js',
                     '/src/reportes/validacion/GestorValidacion.js',
                     '/src/reportes/validacion/ValidacionPanel.js',

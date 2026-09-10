@@ -44,6 +44,9 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_cp_8_funciones.sql` | Derivación del CP y vista del mapa |
    | `…_listar_moderables.sql` | Candidatos de fusión para el panel (incluye validados) |
    | `…_fotos.sql` | Bucket privado de fotos, políticas y `adjuntar_foto()` |
+   | `…_adjuntar_foto_moderados.sql` | Permite adjuntar foto a reportes ya validados |
+   | `…_cp_declarado.sql` | `crear_reporte` acepta el CP elegido por el ciudadano |
+   | `…_catalogo_asentamientos.sql` | 751 asentamientos verificados y limpieza de CP de Tecate |
 
    > Los polígonos van partidos en seis archivos a propósito: el SQL Editor
    > rechaza peticiones grandes con **"Request Entity Too Large"**, y el archivo
@@ -146,8 +149,10 @@ puedan encadenar fusiones, y que los agregados cuenten solo reportes validados.
 
 - **Polígonos de colonias.** `colonias.geom` sigue vacío: el mapa usa códigos
   postales justamente porque no hay GeoJSON abierto de colonias. Si consigues
-  el del Ayuntamiento o INEGI, el coroplético puede pasar a colonia. El catálogo
-  de 37 nombres también sigue sin contrastar.
+  el del Ayuntamiento o INEGI, el coroplético puede pasar a colonia.
+- **18 códigos postales sin polígono.** El catálogo de asentamientos tiene 179
+  CP y el GeoJSON solo trae 161 de ellos. Un reporte en uno de esos 18 guarda su
+  colonia pero no aparece en el mapa, porque no hay forma de pintarlo.
 - **Abuso en la captura anónima.** Hoy cualquiera con la anon key puede insertar
   reportes en volumen. Falta limitar por IP con una Edge Function o un captcha;
   no se resuelve con RLS.
