@@ -47,6 +47,7 @@ retorno de ninguna función, ni siquiera para un moderador.
    | `…_adjuntar_foto_moderados.sql` | Permite adjuntar foto a reportes ya validados |
    | `…_cp_declarado.sql` | `crear_reporte` acepta el CP elegido por el ciudadano |
    | `…_catalogo_asentamientos.sql` | 751 asentamientos verificados y limpieza de CP de Tecate |
+   | `…_detalle_por_cp.sql` | Desglose por zona y categoría, para la ficha del mapa |
 
    > Los polígonos van partidos en seis archivos a propósito: el SQL Editor
    > rechaza peticiones grandes con **"Request Entity Too Large"**, y el archivo

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'denuncia-v10';
+const CACHE_NAME = 'denuncia-v11';
 
 self.addEventListener('install', (event) => {
     console.log('Instalando el Service Worker...');

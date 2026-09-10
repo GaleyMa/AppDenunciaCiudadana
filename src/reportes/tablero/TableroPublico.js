@@ -9,10 +9,17 @@
 
 import { seleccionar } from '../api/SupabaseApi.js';
 import { etiquetaCategoria } from '../datos/categorias.js';
+import ASENTAMIENTOS_MEXICALI from '../datos/asentamientos-mexicali.js';
 import { barrasHorizontales, serieTemporal, coropletico, leyendaMapa } from './graficas.js';
 
 const CACHE = 'tablero_datos';
 const RUTA_GEOJSON = new URL('../datos/cp-mexicali.geojson', import.meta.url);
+const RUTA_VIALIDADES = new URL('../datos/vialidades-mexicali.geojson', import.meta.url);
+
+/** Colonias de un código postal, del catálogo local. */
+const coloniasDe = (cp) => ASENTAMIENTOS_MEXICALI
+    .filter((a) => a.cp === cp)
+    .map((a) => a.n);
 
 const crear = (etiqueta, clase, contenido) => {
     const nodo = document.createElement(etiqueta);
@@ -21,21 +28,30 @@ const crear = (etiqueta, clase, contenido) => {
     return nodo;
 };
 
-const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', {
-    day: 'numeric', month: 'short',
-});
+const fechaCorta = (iso) => {
+    const fecha = new Date(`${iso}T12:00:00`);
+    // Antes de rendirse, el texto crudo dice más que "Invalid Date".
+    if (Number.isNaN(fecha.getTime())) return String(iso);
+    return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+};
 
 /** Trae los cinco agregados de una sola vez. */
 async function pedirDatos() {
-    const [resumen, categorias, colonias, semanas, codigos] = await Promise.all([
+    const [resumen, categorias, colonias, semanas, codigos, porZona] = await Promise.all([
         seleccionar('resumen_general'),
         seleccionar('estadisticas_por_categoria', { orden: 'validados.desc' }),
         seleccionar('top_colonias'),
         seleccionar('serie_semanal', { orden: 'semana.asc' }),
-        seleccionar('estadisticas_por_cp', { columnas: 'codigo_postal,validados' }),
+        seleccionar('estadisticas_por_cp', { columnas: 'codigo_postal,validados,reporte_mas_reciente' })
+            // Si el proyecto aún no tiene la columna nueva, se pide sin ella.
+            .catch(() => seleccionar('estadisticas_por_cp', { columnas: 'codigo_postal,validados' })),
+        seleccionar('estadisticas_por_cp_categoria', { limite: 2000 }).catch(() => []),
     ]);
 
-    return { resumen: resumen[0] ?? {}, categorias, colonias, semanas, codigos, obtenido: new Date().toISOString() };
+    return {
+        resumen: resumen[0] ?? {}, categorias, colonias, semanas, codigos, porZona,
+        obtenido: new Date().toISOString(),
+    };
 }
 
 function guardarEnCache(datos) {
@@ -84,8 +100,58 @@ function seccion(titulo, ...hijos) {
     return bloque;
 }
 
+/**
+ * Ficha de la zona elegida: qué colonias abarca y de qué han sido los reportes.
+ * El mapa por sí solo dice "aquí hay muchos"; esto dice de qué.
+ */
+function fichaZona(cp, datos) {
+    const ficha = crear('div', 'ficha-zona');
+
+    const fila = crear('div', 'ficha-cabecera');
+    fila.appendChild(crear('h3', null, `Código postal ${cp}`));
+    const total = datos.codigos.find((c) => c.codigo_postal === cp)?.validados ?? 0;
+    fila.appendChild(crear('span', 'ficha-total',
+        `${total} ${total === 1 ? 'reporte' : 'reportes'}`));
+    ficha.appendChild(fila);
+
+    const colonias = coloniasDe(cp);
+    if (colonias.length) {
+        const listadas = colonias.slice(0, 6).join(' · ');
+        ficha.appendChild(crear('p', 'ficha-colonias',
+            colonias.length > 6 ? `${listadas} y ${colonias.length - 6} más` : listadas));
+    }
+
+    const desglose = datos.porZona
+        .filter((d) => d.codigo_postal === cp)
+        .sort((a, b) => b.validados - a.validados);
+
+    if (!desglose.length) {
+        ficha.appendChild(crear('p', 'nota', 'Sin reportes validados en esta zona todavía.'));
+        return ficha;
+    }
+
+    const lista = crear('ul', 'ficha-categorias');
+    for (const linea of desglose) {
+        const elemento = crear('li');
+        elemento.append(
+            crear('span', null, etiquetaCategoria(linea.categoria)),
+            crear('strong', null, String(linea.validados)),
+        );
+        lista.appendChild(elemento);
+    }
+    ficha.appendChild(lista);
+
+    const reciente = datos.codigos.find((c) => c.codigo_postal === cp)?.reporte_mas_reciente;
+    if (reciente) {
+        ficha.appendChild(crear('p', 'nota',
+            `Último reporte: ${new Date(reciente).toLocaleDateString('es-MX', { dateStyle: 'medium' })}`));
+    }
+
+    return ficha;
+}
+
 /** Tabla de respaldo: el color del mapa nunca debe ser la única vía al dato. */
-function tablaCodigos(codigos) {
+function tablaCodigos(codigos, alElegir = null) {
     const conDatos = codigos.filter((c) => c.validados > 0)
         .sort((a, b) => b.validados - a.validados);
 
@@ -104,6 +170,21 @@ function tablaCodigos(codigos) {
         const tr = crear('tr');
         tr.appendChild(crear('td', null, String(fila.codigo_postal)));
         tr.appendChild(crear('td', 'numero', String(fila.validados)));
+
+        // La tabla también selecciona la zona: es la vía accesible con teclado,
+        // porque los polígonos del mapa no son enfocables.
+        if (alElegir) {
+            tr.tabIndex = 0;
+            tr.className = 'fila-elegible';
+            tr.addEventListener('click', () => alElegir(fila.codigo_postal));
+            tr.addEventListener('keydown', (evento) => {
+                if (evento.key === 'Enter' || evento.key === ' ') {
+                    evento.preventDefault();
+                    alElegir(fila.codigo_postal);
+                }
+            });
+        }
+
         cuerpo.appendChild(tr);
     }
     tabla.appendChild(cuerpo);
@@ -135,12 +216,24 @@ function tablaColonias(colonias) {
  */
 export default function initTableroPublico(contenedor) {
     let geojson = null;
+    let marcarZona = () => { };
+
+    let vialidades = null;
 
     async function obtenerGeojson() {
-        // Se pide solo cuando se abre el tablero: son 200 KB que no tienen por
-        // qué pesar en quien únicamente va a levantar un reporte.
+        // Se piden solo al abrir el tablero: son cientos de KB que no tienen
+        // por qué pesar en quien únicamente va a levantar un reporte.
         if (!geojson) geojson = await (await fetch(RUTA_GEOJSON)).json();
         return geojson;
+    }
+
+    async function obtenerVialidades() {
+        // Si las calles no cargan, el mapa se dibuja igual: son una ayuda para
+        // ubicarse, no el dato.
+        if (vialidades === null) {
+            vialidades = await fetch(RUTA_VIALIDADES).then((r) => r.json()).catch(() => false);
+        }
+        return vialidades || null;
     }
 
     async function pintar(datos, { desdeCache = false } = {}) {
@@ -161,23 +254,45 @@ export default function initTableroPublico(contenedor) {
 
         // ── Mapa ──
         const valores = new Map(datos.codigos.map((c) => [c.codigo_postal, c.validados]));
+        // En escritorio, mapa y gráficas se reparten en dos columnas; en
+        // celular la rejilla colapsa sola a una sola columna.
+        const rejilla = crear('div', 'rejilla');
+
         const bloqueMapa = seccion('Dónde se concentran');
+        bloqueMapa.classList.add('bloque-mapa');
+        const hueco = crear('div', 'ficha-hueco');
+
         try {
-            const { svg, cortes } = coropletico(await obtenerGeojson(), valores);
-            bloqueMapa.append(svg, leyendaMapa(cortes));
+            const { svg, cortes, marcar } = coropletico(await obtenerGeojson(), valores, {
+                vialidades: await obtenerVialidades(),
+                alSeleccionar: (cp) => {
+                    marcarZona(cp);
+                    hueco.replaceChildren(fichaZona(cp, datos));
+                },
+            });
+            marcarZona = marcar;
+            bloqueMapa.append(svg, leyendaMapa(cortes), hueco);
         } catch {
             bloqueMapa.appendChild(crear('p', 'sin-datos', 'No se pudo cargar el mapa.'));
         }
+
         bloqueMapa.appendChild(crear('p', 'nota',
-            'Agrupado por código postal. Un reporte sin ubicación cuenta en las tablas pero no aparece en el mapa.'));
-        bloqueMapa.appendChild(tablaCodigos(datos.codigos));
-        contenedor.appendChild(bloqueMapa);
+            'Toca una zona para ver sus colonias y de qué han sido los reportes. '
+            + 'El mapa encuadra la mancha urbana y agrupa por código postal: los reportes del '
+            + 'valle, y los que no traen ubicación, cuentan en las tablas aunque no se vean aquí.'));
+        bloqueMapa.appendChild(tablaCodigos(datos.codigos, (cp) => {
+            marcarZona(cp);
+            hueco.replaceChildren(fichaZona(cp, datos));
+            hueco.scrollIntoView({ block: 'nearest' });
+        }));
+        rejilla.appendChild(bloqueMapa);
+        contenedor.appendChild(rejilla);
 
         // ── Categorías ──
         const porCategoria = datos.categorias.map((c) => ({
             etiqueta: etiquetaCategoria(c.categoria), valor: c.validados,
         }));
-        contenedor.appendChild(seccion('Qué se reporta',
+        rejilla.appendChild(seccion('Qué se reporta',
             porCategoria.length
                 ? barrasHorizontales(porCategoria)
                 : crear('p', 'sin-datos', 'Aún no hay reportes validados.')));
@@ -186,13 +301,13 @@ export default function initTableroPublico(contenedor) {
         const porSemana = datos.semanas.map((s) => ({
             etiqueta: fechaCorta(s.semana), valor: s.validados,
         }));
-        contenedor.appendChild(seccion('Cómo va por semana',
+        rejilla.appendChild(seccion('Cómo va por semana',
             porSemana.length
                 ? serieTemporal(porSemana)
                 : crear('p', 'sin-datos', 'Todavía no hay suficientes semanas con datos.')));
 
         // ── Top 5 ──
-        contenedor.appendChild(seccion('Colonias con más reportes', tablaColonias(datos.colonias)));
+        rejilla.appendChild(seccion('Colonias con más reportes', tablaColonias(datos.colonias)));
 
         const pie = crear('footer', 'panel-pie');
         pie.appendChild(crear('p', null,

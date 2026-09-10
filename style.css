@@ -747,3 +747,132 @@ footer p {
 .sugerencias li.activa .detalle-opcion {
     color: var(--verde);
 }
+
+/* ===== Mapa: calles, zonas y ficha ===== */
+
+.nombre-via {
+    font-size: 7px;
+    font-weight: 600;
+    fill: #52514e;
+    /* Contorno del color del papel para que el nombre se lea sobre cualquier
+       tono de la rampa, sin recuadro que tape el dato. */
+    stroke: #fff;
+    stroke-width: 2.2px;
+    paint-order: stroke fill;
+    pointer-events: none;
+}
+
+.mapa .zona {
+    transition: opacity 0.1s;
+}
+
+.mapa .zona:hover {
+    opacity: 0.75;
+}
+
+.ficha-hueco:empty {
+    display: none;
+}
+
+.ficha-zona {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: var(--arena);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.ficha-cabecera {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ficha-cabecera h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--verde);
+}
+
+.ficha-total {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.ficha-colonias {
+    margin: 6px 0 10px;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+}
+
+.ficha-categorias {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+}
+
+.ficha-categorias li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--borde);
+}
+
+.ficha-categorias li:last-child {
+    border-bottom: 0;
+}
+
+.fila-elegible {
+    cursor: pointer;
+}
+
+.fila-elegible:hover,
+.fila-elegible:focus-visible {
+    background-color: #e8f3ec;
+    outline: none;
+}
+
+/* ===== Tablero en pantallas grandes =====
+   En celular todo va en una columna. En escritorio esa misma columna dejaba los
+   costados vacíos, así que a partir de 900px el tablero se reparte en rejilla:
+   el mapa manda y las gráficas lo acompañan. El formulario NO cambia: una
+   columna angosta es lo correcto para capturar. */
+
+@media (min-width: 900px) {
+    #vista-tablero.panel {
+        max-width: 1080px;
+    }
+
+    #vista-tablero .tarjetas {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    #vista-tablero .rejilla {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+
+    #vista-tablero .rejilla > .tarjeta {
+        margin-bottom: 0;
+    }
+
+    /* El mapa ocupa la columna ancha y toda la altura de la fila. */
+    #vista-tablero .rejilla > .bloque-mapa {
+        grid-row: span 3;
+    }
+
+    #vista-tablero .dato-valor:not(.dato-texto) {
+        font-size: 2rem;
+    }
+}
+
+@media (min-width: 1180px) {
+    #vista-tablero.panel {
+        max-width: 1180px;
+    }
+}

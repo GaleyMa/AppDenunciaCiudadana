@@ -61,8 +61,29 @@
             comprobar(tablero.querySelectorAll('.leyenda li').length === 5, 'la leyenda tiene 5 escalones');
             comprobar(!!tablero.querySelector('.tabla-desplegable'),
                 'el mapa trae tabla de respaldo: el color no es la única vía al dato');
-            comprobar(tablero.textContent.includes('no aparece en el mapa'),
-                'se advierte que un reporte sin ubicación no sale en el mapa');
+            comprobar(tablero.textContent.includes('cuentan en las tablas aunque no se vean aquí'),
+                'se advierte que hay reportes que no se ven en el mapa');
+
+            // --- Calles y selección de zona ---
+            const calles = mapa && mapa.querySelectorAll('.vialidades path');
+            comprobar(calles && calles.length > 50,
+                `el mapa dibuja las calles principales (${calles ? calles.length : 0} tramos)`);
+            const nombres = mapa && [...mapa.querySelectorAll('.nombre-via')].map((n) => n.textContent);
+            comprobar(nombres && nombres.length > 0 && nombres.length <= 7,
+                `rotula unas pocas vialidades: ${nombres ? nombres.join(' / ') : '-'}`);
+
+            const zona = tablero.querySelector('.mapa .zona');
+            zona.dispatchEvent(new marco.contentWindow.MouseEvent('click', { bubbles: true }));
+            await espera(300);
+            const ficha = tablero.querySelector('.ficha-zona');
+            comprobar(!!ficha, 'al tocar una zona aparece su ficha');
+            comprobar(ficha && /Código postal \d{5}/.test(ficha.textContent),
+                'la ficha dice de qué código postal es: ' + (ficha ? ficha.querySelector('h3').textContent : '-'));
+            comprobar(zona.getAttribute('stroke') === '#0f5132', 'la zona elegida queda resaltada en el mapa');
+
+            const filaTabla = tablero.querySelector('.fila-elegible');
+            comprobar(!!filaTabla && filaTabla.tabIndex === 0,
+                'las filas de la tabla también seleccionan zona, y son alcanzables con teclado');
             comprobar(tablero.textContent.includes('no existe ningún dato de quien los levantó'),
                 'el pie recuerda que los reportes son anónimos');
 
