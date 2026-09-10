@@ -153,7 +153,9 @@ puedan encadenar fusiones, y que los agregados cuenten solo reportes validados.
   el del Ayuntamiento o INEGI, el coroplético puede pasar a colonia.
 - **18 códigos postales sin polígono.** El catálogo de asentamientos tiene 179
   CP y el GeoJSON solo trae 161 de ellos. Un reporte en uno de esos 18 guarda su
-  colonia pero no aparece en el mapa, porque no hay forma de pintarlo.
+  colonia pero no aparece en el mapa, porque no hay forma de pintarlo. Son
+  también los huecos blancos que se ven dentro de la mancha urbana: ahí no hay
+  polígono que colorear.
 - **Abuso en la captura anónima.** Hoy cualquiera con la anon key puede insertar
   reportes en volumen. Falta limitar por IP con una Edge Function o un captcha;
   no se resuelve con RLS.

@@ -87,6 +87,18 @@
                 'la ficha dice de qué código postal es: ' + (ficha ? ficha.querySelector('h3').textContent : '-'));
             comprobar(zona.getAttribute('stroke') === '#0f5132', 'la zona elegida queda resaltada en el mapa');
 
+            // --- Encuadre y desplazamiento ---
+            // (se llama marcoMapa porque `marco` ya es el iframe de esta prueba)
+            const marcoMapa = tablero.querySelector('.mapa-marco');
+            comprobar(!!marcoMapa && marcoMapa.contains(mapa),
+                'el mapa vive dentro de un marco desplazable');
+            comprobar(marcoMapa && marco.contentWindow.getComputedStyle(marcoMapa).overflow !== 'visible',
+                'el marco recorta y permite desplazarse');
+            comprobar(mapa && Number(mapa.getAttribute('width')) >= 700,
+                `el mapa se dibuja a tamaño completo (${mapa ? mapa.getAttribute('width') : 0} px de ancho)`);
+            comprobar(marcoMapa && marcoMapa.scrollHeight > 0 && mapa.getBoundingClientRect().width > 0,
+                'el mapa quedó realmente visible dentro del marco');
+
             const filaTabla = tablero.querySelector('.fila-elegible');
             comprobar(!!filaTabla && filaTabla.tabIndex === 0,
                 'las filas de la tabla también seleccionan zona, y son alcanzables con teclado');

@@ -555,12 +555,35 @@ footer p {
 
 /* --- Gráficas --- */
 
-.grafica,
-.mapa {
+.grafica {
     display: block;
     width: 100%;
     height: auto;
     margin-bottom: 6px;
+}
+
+/* El mapa NO se encoge al ancho del contenedor: se dibuja a tamaño completo y
+   su marco es el que se desplaza. */
+.mapa-marco {
+    overflow: auto;
+    max-height: 340px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background-color: #fff;
+    /* Deja que el dedo recorra el mapa sin arrastrar la página entera. */
+    touch-action: pan-x pan-y;
+    overscroll-behavior: contain;
+}
+
+.mapa {
+    display: block;
+    max-width: none;
+}
+
+.nota-mapa {
+    margin: 5px 0 8px;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
 }
 
 .grafica-etiqueta {
@@ -751,13 +774,13 @@ footer p {
 /* ===== Mapa: calles, zonas y ficha ===== */
 
 .nombre-via {
-    font-size: 7.5px;
+    font-size: 12px;
     font-weight: 600;
     fill: #52514e;
     /* Contorno del color del papel para que el nombre se lea sobre cualquier
        tono de la rampa, sin recuadro que tape el dato. */
     stroke: #fff;
-    stroke-width: 2.2px;
+    stroke-width: 3.2px;
     paint-order: stroke fill;
     pointer-events: none;
 }
@@ -868,6 +891,11 @@ footer p {
 
     #vista-tablero .dato-valor:not(.dato-texto) {
         font-size: 2rem;
+    }
+
+    /* En escritorio hay altura de sobra para ver más ciudad de una vez. */
+    #vista-tablero .mapa-marco {
+        max-height: 520px;
     }
 }
 

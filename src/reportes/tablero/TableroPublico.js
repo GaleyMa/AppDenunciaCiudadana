@@ -263,7 +263,7 @@ export default function initTableroPublico(contenedor) {
         const hueco = crear('div', 'ficha-hueco');
 
         try {
-            const { svg, cortes, marcar } = coropletico(await obtenerGeojson(), valores, {
+            const { svg, cortes, marcar, centro } = coropletico(await obtenerGeojson(), valores, {
                 vialidades: await obtenerVialidades(),
                 alSeleccionar: (cp) => {
                     marcarZona(cp);
@@ -271,7 +271,26 @@ export default function initTableroPublico(contenedor) {
                 },
             });
             marcarZona = marcar;
-            bloqueMapa.append(svg, leyendaMapa(cortes), hueco);
+
+            // El mapa se dibuja completo y se recorre dentro de su marco.
+            // Encogerlo para que cupiera entero dejaba las colonias del centro
+            // del tamaño de un punto, y recortarlo dejaba fuera media ciudad.
+            const marco = crear('div', 'mapa-marco');
+            marco.appendChild(svg);
+            const aviso = crear('p', 'nota-mapa', 'Desliza el mapa para recorrer la ciudad.');
+            aviso.hidden = true;
+            bloqueMapa.append(marco, aviso, leyendaMapa(cortes), hueco);
+
+            requestAnimationFrame(() => {
+                // Se abre mirando al centro de Mexicali, no a una esquina del valle.
+                marco.scrollLeft = Math.max(0, centro.x - marco.clientWidth / 2);
+                marco.scrollTop = Math.max(0, centro.y - marco.clientHeight / 2);
+
+                // El aviso solo tiene sentido si de verdad hay a dónde deslizar:
+                // en una pantalla ancha el mapa cabe entero.
+                aviso.hidden = marco.scrollWidth <= marco.clientWidth
+                    && marco.scrollHeight <= marco.clientHeight;
+            });
         } catch {
             bloqueMapa.appendChild(crear('p', 'sin-datos', 'No se pudo cargar el mapa.'));
         }

@@ -185,7 +185,10 @@ const colorDe = (valor, cortes) => {
  * @param {(cp: number) => void} [opciones.alSeleccionar] al tocar una zona.
  */
 export function coropletico(geojson, valores, { vialidades = null, alSeleccionar = null } = {}) {
-    const ANCHO = 320, ALTO = 300;
+    // El mapa se dibuja grande y se recorre dentro de su marco. Encogerlo para
+    // que quepa completo dejaba las colonias del centro del tamaño de un punto
+    // y los nombres de calle ilegibles.
+    const ANCHO = 760;
     const maximo = Math.max(0, ...valores.values());
     const cortes = calcularCortes(maximo);
 
@@ -202,33 +205,34 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
         (f) => cerca(f) || (valores.get(f.properties.cp) ?? 0) > 0,
     );
 
-    // ...pero el encuadre lo mandan SOLO los polígonos urbanos, que se
-    // reconocen por ser mucho más chicos que los ejidales: se toma la mitad de
-    // menor superficie. Sin esto, dos o tres polígonos rurales enormes se comen
-    // el mapa y la ciudad queda del tamaño de una uña.
-    //
-    // El encuadre no se abre para incluir zonas con reportes: un solo reporte
-    // en un ejido lejano alejaría el mapa y volvería ilegible la ciudad, que es
-    // donde está casi todo. Esas zonas siguen contadas en la tabla de abajo.
+    // ...y el encuadre lo mandan los polígonos urbanos, que se reconocen por
+    // ser mucho más chicos que los ejidales. Se toma el 85% de menor
+    // superficie: con la mitad, como estaba antes, el marco se ceñía al casco
+    // viejo y dejaba fuera 30 zonas de verdad —Pórticos, La Condesa,
+    // Xochimilco, Villa del Rey, El Coloso—, que se dibujaban pero quedaban
+    // recortadas. Descartar el 15% más grande evita que dos o tres ejidos
+    // enormes estiren el mapa hasta el valle.
     const porArea = visibles.map((f) => [f, area(f)]).sort((a, b) => a[1] - b[1]);
-    const urbanos = porArea.slice(0, Math.max(1, Math.ceil(porArea.length / 2))).map(([f]) => f);
+    const urbanos = porArea.slice(0, Math.max(1, Math.ceil(porArea.length * 0.85))).map(([f]) => f);
 
     const caja = limites(urbanos);
     // Corrección por latitud: sin ella la ciudad sale estirada a lo ancho.
     const escalaX = Math.cos((CENTRO.lat * Math.PI) / 180);
     const anchoGeo = (caja.maxX - caja.minX) * escalaX;
     const altoGeo = caja.maxY - caja.minY;
-    const k = Math.min(ANCHO / anchoGeo, ALTO / altoGeo);
-    const desplazaX = (ANCHO - anchoGeo * k) / 2;
-    const desplazaY = (ALTO - altoGeo * k) / 2;
+
+    // El alto sale de la proporción real del terreno; el ancho es fijo.
+    const k = ANCHO / anchoGeo;
+    const ALTO = Math.round(altoGeo * k);
 
     const proyecta = ([lon, lat]) => [
-        ((lon - caja.minX) * escalaX * k + desplazaX).toFixed(1),
-        ((caja.maxY - lat) * k + desplazaY).toFixed(1),
+        ((lon - caja.minX) * escalaX * k).toFixed(1),
+        ((caja.maxY - lat) * k).toFixed(1),
     ];
 
     const svg = crear('svg', {
-        viewBox: `0 0 ${ANCHO} ${ALTO}`, class: 'mapa', role: 'img',
+        viewBox: `0 0 ${ANCHO} ${ALTO}`, width: ANCHO, height: ALTO,
+        class: 'mapa', role: 'img',
         'aria-label': 'Mapa de reportes validados por código postal',
     });
 
@@ -242,7 +246,7 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
             fill: colorDe(valor, cortes),
             // El borde es del color de la superficie: separa los polígonos sin
             // dibujarles un contorno que compita con el dato.
-            stroke: '#ffffff', 'stroke-width': 0.5,
+            stroke: '#ffffff', 'stroke-width': 0.8,
             class: 'zona',
         });
         conTooltip(camino, `CP ${cp}: ${valor} ${valor === 1 ? 'reporte' : 'reportes'}`);
@@ -265,12 +269,16 @@ export function coropletico(geojson, valores, { vialidades = null, alSeleccionar
         for (const [codigo, camino] of zonas) {
             const elegida = codigo === cp;
             camino.setAttribute('stroke', elegida ? '#0f5132' : '#ffffff');
-            camino.setAttribute('stroke-width', elegida ? 1.6 : 0.5);
+            camino.setAttribute('stroke-width', elegida ? 2.6 : 0.8);
             if (elegida) svg.insertBefore(camino, svg.querySelector('.vialidades'));
         }
     };
 
-    return { svg, cortes, maximo, marcar };
+    // Dónde cae el centro de la ciudad dentro del dibujo, para abrir el mapa
+    // mirando ahí y no en una esquina del valle.
+    const [centroX, centroY] = proyecta([CENTRO.lon, CENTRO.lat]).map(Number);
+
+    return { svg, cortes, maximo, marcar, centro: { x: centroX, y: centroY }, ancho: ANCHO, alto: ALTO };
 }
 
 /**
@@ -300,11 +308,11 @@ function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
             // zona, y encima la línea. Así se lee como una vialidad y no como
             // una raya suelta.
             grupo.appendChild(crear('path', {
-                d, fill: 'none', stroke: '#ffffff', 'stroke-width': 2.6,
+                d, fill: 'none', stroke: '#ffffff', 'stroke-width': 4.5,
                 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9,
             }));
             grupo.appendChild(crear('path', {
-                d, fill: 'none', stroke: '#7c8894', 'stroke-width': 1.1,
+                d, fill: 'none', stroke: '#7c8894', 'stroke-width': 1.8,
                 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
             }));
 
@@ -315,7 +323,7 @@ function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
             for (let i = 0; i < puntos.length - 1; i += 1) {
                 let recorrido = 0;
 
-                for (let j = i + 1; j < Math.min(i + 9, puntos.length); j += 1) {
+                for (let j = i + 1; j < Math.min(i + 13, puntos.length); j += 1) {
                     recorrido += Math.hypot(
                         puntos[j][0] - puntos[j - 1][0], puntos[j][1] - puntos[j - 1][1]);
 
@@ -336,7 +344,8 @@ function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
         // choca con otro nombre, se prueba el siguiente. Antes se descartaba la
         // avenida entera y quedaban calles sin nombre.
         candidatos.sort((a, b) => b.largo - a.largo);
-        const medio = (via.properties.nombre.length * 3.3) / 2;
+        // Ancho aproximado del texto: el tipo mide ~0.45 del alto por carácter.
+        const medio = (via.properties.nombre.length * 12 * 0.45) / 2;
 
         // Se prueban varias posiciones A LO LARGO del tramo, empezando por el
         // centro y abriéndose hacia los extremos. Antes solo se probaba el
@@ -345,8 +354,10 @@ function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
         const FRACCIONES = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82];
         let rotulada = false;
 
-        for (const { largo, x1, y1, x2, y2 } of candidatos.slice(0, 40)) {
-            if (largo < 20 || rotulada) break;
+        // El umbral está en unidades del dibujo, donde 1 unidad ≈ 45 m: pide
+        // kilómetro y medio de tramo recto para colgarle el nombre.
+        for (const { largo, x1, y1, x2, y2 } of candidatos.slice(0, 60)) {
+            if (largo < 34 || rotulada) break;
 
             let angulo = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
             if (angulo > 90) angulo -= 180;
@@ -373,7 +384,7 @@ function dibujarVialidades(svg, vialidades, proyecta, ancho, alto) {
 
                 colocadas.push([cx, cy, alcanceX, alcanceY]);
                 etiquetas.appendChild(texto(via.properties.nombre, {
-                    x: cx, y: cy - 2.5, class: 'nombre-via', 'text-anchor': 'middle',
+                    x: cx, y: cy - 4, class: 'nombre-via', 'text-anchor': 'middle',
                     transform: `rotate(${angulo.toFixed(1)} ${cx.toFixed(1)} ${cy.toFixed(1)})`,
                 }));
                 rotulada = true;
