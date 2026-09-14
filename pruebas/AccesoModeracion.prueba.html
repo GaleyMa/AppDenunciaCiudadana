@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pruebas — Acceso a la moderación</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f0f0f0; }
+        li { margin: 4px 0; }
+        .ok { color: #0a7d33; }
+        .fail { color: #b00020; font-weight: bold; }
+        #resumen { font-size: 1.1rem; margin-top: 15px; }
+        iframe { width: 480px; height: 420px; border: 1px solid #ccc; background: #fff; }
+    </style>
+</head>
+
+<body>
+    <h1>Acceso a la moderación</h1>
+    <p>Comprueba las dos barreras: la URL con token (que solo oculta la
+        existencia del panel) y el inicio de sesión (que es la de verdad).
+        Solo lee; el intento con credenciales falsas no crea nada.</p>
+    <ul id="salida"></ul>
+    <p id="resumen"></p>
+    <div id="host"></div>
+
+    <script type="module">
+        import { TOKEN_PANEL, RUTA_PANEL } from '../src/config.js';
+
+        const salida = document.getElementById('salida');
+        let pasadas = 0, fallidas = 0;
+        const comprobar = (condicion, texto) => {
+            condicion ? pasadas++ : fallidas++;
+            salida.insertAdjacentHTML('beforeend',
+                `<li class="${condicion ? 'ok' : 'fail'}">${condicion ? 'PASS' : 'FALLO'} — ${texto}</li>`);
+        };
+        const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const marco = document.createElement('iframe');
+        const cargado = new Promise((r) => marco.addEventListener('load', r));
+        marco.src = '../index.html';
+        document.getElementById('host').appendChild(marco);
+        await cargado;
+
+        try {
+            await espera(400);
+            const d = marco.contentDocument, w = marco.contentWindow;
+            w.localStorage.removeItem('sesion_moderador');
+
+            const panel = () => d.getElementById('vista-panel');
+            const publica = () => d.getElementById('vista-publica');
+            const irA = async (hash) => { w.location.hash = hash; await espera(400); };
+
+            // --- Barrera 1: la URL ---
+            await irA('');
+            comprobar(panel().hidden && !publica().hidden, 'sin token: panel oculto y vista pública visible');
+            comprobar(panel().children.length === 0, 'sin token: el panel ni siquiera se pinta');
+            comprobar(!d.body.textContent.includes('moderación'),
+                'sin token: la página no revela que exista moderación');
+
+            await irA(RUTA_PANEL + 'token-inventado-123');
+            comprobar(panel().hidden && !publica().hidden, 'token incorrecto: sigue la vista pública, sin mensajes');
+
+            // --- Barrera 2: la sesión ---
+            await irA(RUTA_PANEL + TOKEN_PANEL);
+            comprobar(!panel().hidden && publica().hidden, 'token correcto: se abre la ruta de moderación');
+            comprobar(!!d.getElementById('acceso-correo') && !!d.getElementById('acceso-clave'),
+                'con el token correcto NO se ve el panel: se pide correo y contraseña');
+            comprobar(panel().querySelectorAll('.reporte').length === 0,
+                'sin sesión no se pinta ningún reporte');
+            comprobar(!/listar_pendientes/.test(d.body.innerHTML), 'no se filtran datos del servidor en la página');
+
+            // Credenciales falsas: el servidor las rechaza.
+            d.getElementById('acceso-correo').value = 'nadie@ejemplo.invalido';
+            d.getElementById('acceso-clave').value = 'contrasena-incorrecta';
+            d.querySelector('.form-acceso').dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
+            // Es una llamada real al servidor: se espera a que responda en vez
+            // de dar por hecho que tarda menos de dos segundos.
+            for (let i = 0; i < 30 && !d.getElementById('acceso-error').textContent; i += 1) {
+                await espera(400);
+            }
+            const error = d.getElementById('acceso-error').textContent;
+            comprobar(/incorrect|confirmad|No se pudo/i.test(error), 'credenciales inválidas: "' + error + '"');
+            comprobar(panel().querySelectorAll('.reporte').length === 0, 'tras fallar el acceso sigue sin haber panel');
+            comprobar(!w.localStorage.getItem('sesion_moderador'), 'no queda sesión guardada tras un intento fallido');
+
+            await irA('');
+            comprobar(panel().hidden && !publica().hidden, 'volver al hash vacío regresa a la vista pública');
+        } catch (error) {
+            comprobar(false, 'excepción inesperada: ' + error.message);
+        }
+
+        const resumen = document.getElementById('resumen');
+        resumen.textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
+        resumen.className = fallidas ? 'fail' : 'ok';
+    </script>
+</body>
+
+</html>

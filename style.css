@@ -1,53 +1,916 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #f0f0f0;
+/* style.css — mobile-first, una sola columna. Sin frameworks. */
+
+:root {
+    --verde: #0f5132;
+    --verde-claro: #157347;
+    --arena: #f4f1ea;
+    --texto: #1f2328;
+    --texto-suave: #5b6470;
+    --borde: #d8d4cb;
+    --error: #b00020;
+    --exito: #0a7d33;
 }
 
-main {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
+* {
+    box-sizing: border-box;
 }
+
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0 0 30px;
+    color: var(--texto);
+    background-color: var(--arena);
+    line-height: 1.5;
+}
+
+/* --- Encabezado --- */
+
+.encabezado {
+    background-color: var(--verde);
+    color: #fff;
+    padding: 22px 20px 18px;
+    text-align: center;
+}
+
+.encabezado h1 {
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1.25;
+}
+
+/* "Mexicali, B.C." en su propio renglón, más discreto que el título. */
+.encabezado h1 span {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
+.lema {
+    margin: 10px 0 0;
+    font-style: italic;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* --- Contenido --- */
+
+main {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 18px 14px 0;
+}
+
+.tarjeta {
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+}
+
+.tarjeta h2 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    color: var(--verde);
+}
+
+.intro p {
+    margin: 0 0 12px;
+    font-size: 0.92rem;
+    color: var(--texto-suave);
+}
+
+.puntos {
+    margin: 0 0 12px;
+    padding-left: 18px;
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+}
+
+.puntos li {
+    margin-bottom: 5px;
+}
+
+.puntos strong {
+    color: var(--texto);
+}
+
+.aviso {
+    background-color: #fdf3f4;
+    border-left: 3px solid var(--error);
+    border-radius: 0 6px 6px 0;
+    padding: 9px 12px;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+/* --- Formulario --- */
 
 form {
     display: flex;
     flex-direction: column;
 }
 
-form div {
-    margin-bottom: 15px;
+.campo {
+    margin-bottom: 16px;
 }
 
 label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.campo small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
 }
 
 input,
 select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    width: 100%;
+    padding: 11px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--texto);
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+}
+
+input[type="file"] {
+    padding: 9px;
+    font-size: 0.85rem;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+    outline: 2px solid var(--verde-claro);
+    outline-offset: 1px;
 }
 
 button {
-    padding: 10px;
-    background-color: #000000;
+    padding: 13px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
     color: #fff;
+    background-color: var(--verde);
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
 }
 
 button:hover {
-    background-color: #333;
+    background-color: var(--verde-claro);
+}
+
+button:disabled {
+    background-color: #9aa1a8;
+    cursor: not-allowed;
+}
+
+/* --- Autocompletado de colonias --- */
+
+/* El contenedor es la referencia de posición del desplegable. */
+.autocompletar {
+    position: relative;
+}
+
+.sugerencias {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 216px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.sugerencias li {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+/* .activa la pone el JS al navegar con las flechas del teclado. */
+.sugerencias li:hover,
+.sugerencias li.activa {
+    background-color: #e8f3ec;
+    color: var(--verde);
+}
+
+/* --- Mensajes --- */
+
+.msg-error,
+.msg-exito {
+    margin: 0 0 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.msg-error:empty,
+.msg-exito:empty {
+    margin: 0;
+}
+
+.msg-error {
+    color: var(--error);
+}
+
+.msg-exito {
+    color: var(--exito);
+}
+
+/* --- Pie --- */
+
+footer {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 0 14px;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+footer p {
+    margin: 0;
+}
+
+/* En pantallas grandes solo se ensancha un poco: sigue siendo una columna. */
+@media (min-width: 620px) {
+    main,
+    footer {
+        max-width: 540px;
+    }
+
+    .encabezado h1 {
+        font-size: 1.7rem;
+    }
+}
+
+/* ===== Panel de validación (Incremento 2) =====
+   Se muestra solo cuando la URL trae el token correcto; la vista pública queda
+   oculta mientras tanto. */
+
+.panel {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px 14px 30px;
+}
+
+.panel-cabecera {
+    background-color: var(--verde);
+    color: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+
+.panel-cabecera h1 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.panel-conteo {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Mensaje de resultado de la última acción. Vacío no ocupa espacio. */
+.panel-aviso {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--exito);
+}
+
+.panel-aviso:not(:empty) {
+    margin-bottom: 12px;
+    padding: 9px 12px;
+    background-color: #e8f3ec;
+    border-radius: 6px;
+}
+
+.panel-aviso.es-error {
+    color: var(--error);
+    background-color: #fdf3f4;
+}
+
+.sin-datos {
+    padding: 22px;
+    text-align: center;
+    color: var(--texto-suave);
+    background-color: #fff;
+    border: 1px dashed var(--borde);
+    border-radius: 10px;
+}
+
+.lista-reportes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.reporte {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 12px;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.miniatura {
+    width: 84px;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: var(--arena);
+    border-radius: 8px;
+}
+
+.miniatura img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sin-foto {
+    font-size: 0.72rem;
+    color: var(--texto-suave);
+}
+
+.datos p {
+    margin: 0 0 3px;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+}
+
+.datos .categoria {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--texto);
+}
+
+.datos .id-reporte {
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+/* Los botones y el detalle ocupan el ancho completo de la tarjeta. */
+.acciones,
+.accion-detalle {
+    grid-column: 1 / -1;
+}
+
+.acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.acciones button,
+.acciones-detalle button {
+    flex: 1 1 auto;
+    min-width: 96px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+}
+
+.btn-principal {
+    background-color: var(--verde);
+}
+
+.btn-peligro {
+    background-color: var(--error);
+}
+
+.btn-peligro:hover {
+    background-color: #8c0019;
+}
+
+.btn-secundario {
+    background-color: #fff;
+    color: var(--texto);
+    border: 1px solid var(--borde);
+}
+
+.btn-secundario:hover {
+    background-color: var(--arena);
+}
+
+.accion-detalle {
+    border-top: 1px solid var(--borde);
+    padding-top: 10px;
+}
+
+.accion-titulo {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.motivos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.motivo {
+    font-weight: 400;
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+.motivo input {
+    width: auto;
+    margin-right: 4px;
+}
+
+.accion-detalle select {
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+
+.acciones-detalle {
+    display: flex;
+    gap: 8px;
+}
+
+.panel-pie {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+}
+
+.panel-pie p {
+    margin: 0 0 6px;
+}
+
+.panel-pie a {
+    color: var(--verde);
+}
+
+/* ===== Tablero público (Incremento 3) ===== */
+
+.enlace-tablero {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+}
+
+.enlace-tablero a {
+    color: var(--verde);
+    font-weight: 600;
+}
+
+.fila-gps {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.fila-gps button {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.estado-gps {
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+}
+
+.estado-gps.gps-error {
+    color: var(--error);
+}
+
+.cargando,
+.aviso-cache {
+    padding: 12px;
+    text-align: center;
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+}
+
+.aviso-cache {
+    background-color: #fff8e6;
+    border-radius: 6px;
+    margin: 0 0 14px;
+}
+
+/* --- Números gruesos --- */
+
+.tarjetas {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.tarjeta-dato {
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.dato-valor {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--verde);
+}
+
+.dato-rotulo {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+/* --- Gráficas --- */
+
+.grafica {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 6px;
+}
+
+/* El mapa NO se encoge al ancho del contenedor: se dibuja a tamaño completo y
+   su marco es el que se desplaza. */
+.mapa-marco {
+    overflow: auto;
+    /* Sin esto, el SVG de 1520 px impone su ancho mínimo al contenedor: en la
+       rejilla de escritorio la columna del mapa se estiraba y empujaba las
+       gráficas fuera de la pantalla. */
+    min-width: 0;
+    max-width: 100%;
+    max-height: 340px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background-color: #fff;
+    /* Deja que el dedo recorra el mapa sin arrastrar la página entera. */
+    touch-action: pan-x pan-y;
+    overscroll-behavior: contain;
+}
+
+.mapa {
+    display: block;
+    max-width: none;
+}
+
+.nota-mapa {
+    margin: 5px 0 8px;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+
+.grafica-etiqueta {
+    font-size: 11px;
+}
+
+.grafica-valor {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.grafica-eje {
+    font-size: 10px;
+}
+
+.mapa path {
+    transition: opacity 0.1s;
+}
+
+.mapa path:hover {
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin: 4px 0 10px;
+    padding: 0;
+    list-style: none;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+
+.leyenda li {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.muestra {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* "Sin reportes" no se pinta en el mapa: se deja ver el mapa base. */
+.muestra-vacia {
+    background-color: transparent;
+    border: 1px dashed #9aa1a8;
+}
+
+.atribucion {
+    margin: 6px 0 0;
+    font-size: 0.7rem;
+    color: var(--texto-suave);
+}
+
+/* Flota sobre la gráfica; se coloca desde JS. */
+.viz-tooltip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    background-color: #1f2328;
+    color: #fff;
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    max-width: 220px;
+}
+
+/* --- Tablas --- */
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.tabla th,
+.tabla td {
+    text-align: left;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--borde);
+}
+
+.tabla th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+}
+
+.tabla .numero {
+    text-align: right;
+    font-weight: 600;
+}
+
+.tabla-desplegable {
+    margin-top: 8px;
+    font-size: 0.85rem;
+}
+
+.tabla-desplegable summary {
+    cursor: pointer;
+    color: var(--verde);
+    padding: 6px 0;
+}
+
+.tabla-desplegable .tabla {
+    max-height: 260px;
+    overflow-y: auto;
+    display: block;
+}
+
+.nota {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+/* Valor de texto (no una cifra): más chico, para que quepa en la tarjeta. */
+.dato-valor.dato-texto {
+    font-size: 1rem;
+    line-height: 1.25;
+    padding-top: 2px;
+}
+
+/* ===== Acceso y sesión de moderación ===== */
+
+.barra-sesion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background-color: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+}
+
+.barra-sesion button {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+}
+
+.acceso {
+    max-width: 380px;
+    margin: 24px auto;
+}
+
+.acceso h1 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    color: var(--verde);
+}
+
+.form-acceso {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+}
+
+/* Código postal del asentamiento elegido, y detalle en las sugerencias. */
+.estado-cp {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--verde);
+}
+
+.estado-cp:not(:empty) {
+    background-color: #e8f3ec;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+
+.sugerencias li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.detalle-opcion {
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+
+.sugerencias li.activa .detalle-opcion {
+    color: var(--verde);
+}
+
+/* ===== Mapa: calles, zonas y ficha ===== */
+
+.mapa .zona {
+    transition: fill-opacity 0.1s;
+    /* Las zonas sin relleno también deben poder tocarse. */
+    pointer-events: all;
+}
+
+.mapa .zona:hover {
+    fill-opacity: 0.85;
+}
+
+.ficha-hueco:empty {
+    display: none;
+}
+
+.ficha-zona {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: var(--arena);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.ficha-cabecera {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ficha-cabecera h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--verde);
+}
+
+.ficha-total {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.ficha-colonias {
+    margin: 6px 0 10px;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+}
+
+.ficha-categorias {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+}
+
+.ficha-categorias li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--borde);
+}
+
+.ficha-categorias li:last-child {
+    border-bottom: 0;
+}
+
+.fila-elegible {
+    cursor: pointer;
+}
+
+.fila-elegible:hover,
+.fila-elegible:focus-visible {
+    background-color: #e8f3ec;
+    outline: none;
+}
+
+/* ===== Tablero en pantallas grandes =====
+   En celular todo va en una columna. En escritorio esa misma columna dejaba los
+   costados vacíos, así que a partir de 900px el tablero se reparte en rejilla:
+   el mapa manda y las gráficas lo acompañan. El formulario NO cambia: una
+   columna angosta es lo correcto para capturar. */
+
+@media (min-width: 900px) {
+    #vista-tablero.panel {
+        max-width: 1080px;
+    }
+
+    #vista-tablero .tarjetas {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    #vista-tablero .rejilla {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+
+    #vista-tablero .rejilla > .tarjeta {
+        margin-bottom: 0;
+        /* Los elementos de una rejilla no se encogen por debajo de su
+           contenido a menos que se les diga. */
+        min-width: 0;
+    }
+
+    /* El mapa ocupa la columna ancha y toda la altura de la fila. */
+    #vista-tablero .rejilla > .bloque-mapa {
+        grid-row: span 3;
+    }
+
+    #vista-tablero .dato-valor:not(.dato-texto) {
+        font-size: 2rem;
+    }
+
+    /* En escritorio hay altura de sobra para ver más ciudad de una vez. */
+    #vista-tablero .mapa-marco {
+        max-height: 520px;
+    }
+}
+
+@media (min-width: 1180px) {
+    #vista-tablero.panel {
+        max-width: 1180px;
+    }
 }

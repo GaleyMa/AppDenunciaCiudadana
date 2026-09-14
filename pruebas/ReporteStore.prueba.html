@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pruebas — ReporteStore</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f0f0f0; }
+        li { margin: 4px 0; }
+        .ok { color: #0a7d33; }
+        .fail { color: #b00020; font-weight: bold; }
+        #resumen { font-size: 1.1rem; margin-top: 15px; }
+    </style>
+</head>
+
+<body>
+    <h1>Pruebas de ReporteStore</h1>
+    <p>Sirve el proyecto por http://localhost y abre esta página. Trabaja sobre
+        una base aparte (<code>denuncia_ciudadana_pruebas</code>): <strong>no toca
+        tus reportes reales</strong>.</p>
+    <ul id="salida"></ul>
+    <p id="resumen"></p>
+
+    <script type="module">
+        import ReporteStore, { ESTADOS, BASE_PRUEBAS } from '../src/reportes/store/ReporteStore.js';
+
+        const salida = document.getElementById('salida');
+        let pasadas = 0, fallidas = 0;
+
+        const comprobar = (condicion, texto) => {
+            condicion ? pasadas++ : fallidas++;
+            salida.insertAdjacentHTML('beforeend',
+                `<li class="${condicion ? 'ok' : 'fail'}">${condicion ? 'PASS' : 'FALLO'} — ${texto}</li>`);
+        };
+
+        try {
+            await indexedDB.deleteDatabase(BASE_PRUEBAS);
+
+            const store = new ReporteStore(BASE_PRUEBAS);
+            const base = {
+                ubicacion: 'Calle 5 #12', fecha: new Date().toISOString(),
+                estado: ESTADOS.PENDIENTE, motivo: null, refOriginal: null,
+            };
+
+            // Se guarda de inmediato, sin esperar a que la base termine de
+            // abrir: así se prueba que ya no hay race condition.
+            const [id1, id2] = await Promise.all([
+                store.saveReport({ ...base, categoria: 'bache' }),
+                store.saveReport({ ...base, categoria: 'basura' }),
+            ]);
+            comprobar(/^[0-9a-f-]{36}$/.test(id1) && id1 !== id2, `ids UUID distintos: ${id1} / ${id2}`);
+
+            comprobar((await store.getReportsByState(ESTADOS.PENDIENTE)).length === 2,
+                'el índice "estado" devuelve los 2 pendientes');
+
+            await store.updateReportStateById(id1, ESTADOS.VALIDADO);
+            comprobar((await store.getReportsByState(ESTADOS.PENDIENTE)).length === 1,
+                'validar saca el reporte de pendientes');
+
+            const descartado = await store.updateReport(id2, { estado: ESTADOS.DESCARTADO, motivo: 'spam' });
+            comprobar(descartado.estado === 'descartado' && descartado.motivo === 'spam' && descartado.id === id2,
+                'descartar guarda estado + motivo y conserva el id');
+
+            const fusionado = await store.updateReport(id1, { estado: ESTADOS.FUSIONADO, refOriginal: id2 });
+            comprobar(fusionado.refOriginal === id2, 'fusionar guarda refOriginal');
+
+            comprobar((await store.getReportsByState(ESTADOS.PENDIENTE)).length === 0, 'ya no quedan pendientes');
+            comprobar((await store.getAllReports()).length === 2, 'getAllReports devuelve los 2 reportes');
+            comprobar((await store.getReportById('no-existe')) === undefined,
+                'getReportById con id inexistente devuelve undefined');
+
+            const idFoto = await store.saveReport({
+                ...base, categoria: 'otro', foto: new Blob(['x'], { type: 'image/png' }),
+            });
+            const conFoto = await store.getReportById(idFoto);
+            comprobar(conFoto.foto instanceof Blob && URL.createObjectURL(conFoto.foto).startsWith('blob:'),
+                'la foto sobrevive como Blob (la miniatura del panel es viable)');
+
+            // Durabilidad: otra conexión a la misma base ve lo ya guardado.
+            const store2 = new ReporteStore(BASE_PRUEBAS);
+            comprobar((await store2.getAllReports()).length === 3, 'durabilidad: otra conexión ve los 3 reportes');
+
+            // Borrar la base con la app abierta (flujo de DevTools).
+            await indexedDB.deleteDatabase(BASE_PRUEBAS);
+            await new Promise((r) => setTimeout(r, 300));
+            const idTrasBorrar = await store.saveReport({ ...base, categoria: 'bache' });
+            comprobar(!!idTrasBorrar, 'el store se reconecta solo tras borrar la base');
+            comprobar((await store.getReportsByState(ESTADOS.PENDIENTE)).length === 1,
+                'la base recreada trae el índice "estado" funcionando');
+        } catch (error) {
+            comprobar(false, 'excepción inesperada: ' + error.message);
+        }
+
+        document.getElementById('resumen').textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
+        document.getElementById('resumen').className = fallidas ? 'fail' : 'ok';
+    </script>
+</body>
+
+</html>

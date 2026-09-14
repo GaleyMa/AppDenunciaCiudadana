@@ -4,39 +4,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#0f5132">
+    <meta name="description"
+        content="Reporta de forma anónima baches, luminarias apagadas, basura y otras fallas urbanas en Mexicali, B.C.">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="style.css">
-    <title>Denuncia Ciudadana</title>
+    <title>Denuncia Ciudadana Mexicali, B.C.</title>
 </head>
 
 <body>
+    <div id="vista-publica">
+    <header class="encabezado">
+        <h1>Denuncia Ciudadana<span>Mexicali, B.C.</span></h1>
+        <p class="lema">Por un mejor Mexicali</p>
+    </header>
+
     <main>
-        <form id="reporte-form">
-            <div>
-                <label for="reporte-foto">Foto:</label>
-                <input type="file" id="reporte-foto" accept="image/*">
-            </div>
-            <div>
-                <label for="reporte-ubicacion">Ubicación:</label>
-                <input type="text" id="reporte-ubicacion" placeholder="Ubicación">
-            </div>
-            <div>
-                <label for="reporte-categoria">Categoría:</label>
-                <select id="reporte-categoria">
-                    <option value="">Selecciona...</option>
-                    <option value="bache">Bache</option>
-                    <option value="alumbrado">Alumbrado</option>
-                    <option value="basura">Basura</option>
-                    <option value="fuga-agua">Fuga de agua</option>
-                    <option value="otro">Otro</option>
-                </select>
-            </div>
-            <p id="error-msg"></p>
-            <button id="btn-enviar" type="submit">Enviar</button>
-        </form>
+        <section class="tarjeta intro">
+            <h2>¿Qué es esto?</h2>
+            <p>
+                Una herramienta ciudadana e independiente para registrar las fallas
+                urbanas de la ciudad: baches, luminarias apagadas, basura acumulada,
+                fugas de agua y puntos de riesgo. Cada reporte se suma a un mapa
+                público que sirve para exigir mantenimiento donde más se necesita.
+            </p>
+            <ul class="puntos">
+                <li><strong>Anónimo:</strong> no pedimos tu nombre, correo ni teléfono.</li>
+                <li><strong>Sin internet:</strong> tu reporte se guarda en tu teléfono
+                    aunque no tengas señal.</li>
+                <li><strong>De todos:</strong> los datos se publican agregados, sin
+                    dueño ni partido.</li>
+            </ul>
+            <p class="enlace-tablero">
+                <a href="#/tablero">Ver el tablero de reportes de la ciudad →</a>
+            </p>
+            <p class="aviso">
+                Esta app <strong>no es un servicio de emergencia</strong>. Si hay un
+                delito en curso o alguien está en peligro, llama al <strong>911</strong>.
+            </p>
+        </section>
+
+        <section class="tarjeta">
+            <h2>Levantar un reporte</h2>
+            <form id="reporte-form">
+                <div class="campo">
+                    <label for="reporte-foto">Foto</label>
+                    <input type="file" id="reporte-foto" accept="image/*">
+                    <small>Una imagen del problema ayuda a que el reporte se valide más rápido.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="reporte-ubicacion">Colonia o código postal</label>
+                    <!-- Autocompletado propio (ver ColoniaAutocomplete.js). El campo
+                         acepta texto libre: si tu colonia no aparece, escríbela igual. -->
+                    <div class="autocompletar">
+                        <input type="text" id="reporte-ubicacion" placeholder="Escribe tu colonia…"
+                            autocomplete="off" role="combobox" aria-expanded="false"
+                            aria-controls="lista-colonias" aria-autocomplete="list">
+                        <ul id="lista-colonias" class="sugerencias" role="listbox"
+                            aria-label="Asentamientos de Mexicali" hidden></ul>
+                    </div>
+                    <span id="estado-cp" class="estado-cp"></span>
+                    <div class="fila-gps">
+                        <button type="button" id="btn-ubicacion" class="btn-secundario">Usar mi ubicación</button>
+                        <span id="estado-gps" class="estado-gps"></span>
+                    </div>
+                    <small>Escribe tu colonia o tu código postal y elígela de la lista:
+                        así el reporte aparece en el mapa aunque no des tu ubicación.
+                        El punto exacto <strong>nunca se publica</strong>.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="reporte-categoria">Categoría</label>
+                    <!-- Las opciones las agrega ReporteForm desde datos/categorias.js -->
+                    <select id="reporte-categoria">
+                        <option value="">Selecciona…</option>
+                    </select>
+                </div>
+
+                <p id="error-msg" class="msg-error" role="alert"></p>
+                <p id="exito-msg" class="msg-exito" role="status"></p>
+                <button id="btn-enviar" type="submit">Enviar reporte</button>
+            </form>
+        </section>
     </main>
-    <script src="app.js"></script>
+
+    <footer>
+        <p>Proyecto ciudadano independiente · Los reportes se guardan solo en este dispositivo.</p>
+    </footer>
+    </div>
+
+    <!-- Panel de validación. Solo se llena si el hash de la URL trae el token
+         correcto (ver src/config.js); si no, ni siquiera se muestra que existe. -->
+    <div id="vista-panel" class="panel" hidden></div>
+
+    <!-- Tablero público de estadísticas (Incremento 3). Vive en #/tablero. -->
+    <div id="vista-tablero" class="panel" hidden></div>
+
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>

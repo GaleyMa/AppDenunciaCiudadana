@@ -1,0 +1,11 @@
+{
+  "oeste": -115.5744,
+  "este": -115.2154,
+  "sur": 32.4999,
+  "norte": 32.6742,
+  "imagen": "mapa-base-mexicali.webp",
+  "ancho": 1520,
+  "alto": 876,
+  "zoom": 13,
+  "atribucion": "© colaboradores de OpenStreetMap"
+}
