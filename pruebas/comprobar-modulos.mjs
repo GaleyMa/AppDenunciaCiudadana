@@ -1,11 +1,3 @@
-// pruebas/comprobar-modulos.mjs
-//
-// Revisa que cada `import { x } from './y.js'` encuentre realmente esa
-// exportación. Parsear un archivo no basta: un módulo puede quedar
-// sintácticamente válido y aun así haber perdido una función que otro importa,
-// y eso solo se descubre en el navegador, con la pantalla en blanco.
-//
-//   node pruebas/comprobar-modulos.mjs
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';

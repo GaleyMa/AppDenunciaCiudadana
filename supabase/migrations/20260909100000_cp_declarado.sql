@@ -59,10 +59,8 @@ begin
         v_punto := extensions.st_setsrid(extensions.st_makepoint(p_lon, p_lat), 4326)::extensions.geography;
     end if;
 
-    -- 1. Lo que dicen las coordenadas manda.
     v_cp := privado.cp_de_punto(v_punto);
 
-    -- 2. Si no hubo GPS, se acepta el CP declarado siempre que sea uno real.
     if v_cp is null and p_codigo_postal is not null then
         select cp.codigo into v_cp
         from public.codigos_postales cp
@@ -94,11 +92,6 @@ grant execute on function public.crear_reporte(
     uuid, public.categoria_reporte, integer, text, double precision, double precision,
     timestamptz, text, integer) to anon, authenticated;
 
--- ─── Reparar los reportes que ya están sin CP ───────────────────────────────
---
--- Mismo criterio que adjuntar_foto: solo rellena lo que está vacío, nunca pisa
--- un CP ya derivado de coordenadas reales.
-
 create or replace function public.declarar_codigo_postal(p_id uuid, p_codigo_postal integer)
 returns boolean
 language plpgsql
@@ -112,7 +105,7 @@ begin
        set codigo_postal = p_codigo_postal
      where r.id = p_id
        and r.codigo_postal is null
-       and r.coordenadas is null   -- si hubo GPS, el servidor ya decidió
+       and r.coordenadas is null
        and r.estado in ('pendiente', 'validado')
        and exists (select 1 from public.codigos_postales cp where cp.codigo = p_codigo_postal);
 

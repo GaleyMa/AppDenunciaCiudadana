@@ -18,8 +18,6 @@ group by r.codigo_postal, r.categoria;
 
 grant select on public.estadisticas_por_cp_categoria to anon, authenticated;
 
--- La fecha del último reporte de la zona da idea de si el problema es actual.
--- create or replace permite agregar columnas al final, no en medio.
 create or replace view public.estadisticas_por_cp as
 select
     cp.codigo                                                        as codigo_postal,

@@ -1,25 +1,3 @@
-// src/reportes/datos/asentamientos-mexicali.js
-//
-// Catálogo de asentamientos de Mexicali con su código postal.
-//
-// FUENTE: API pública de códigos postales de Correos de México
-// (correosmexico.com.mx/api/cp), consultada CP por CP en el rango 21000–21999
-// el 9 de septiembre de 2026. Se descartaron los registros de otros municipios
-// que comparten ese rango (Tecate).
-//
-// Se descarga UNA VEZ y se guarda aquí, en vez de embeber el widget o llamar a
-// la API desde el formulario, por tres razones:
-//   1. Offline-first: el formulario tiene que funcionar sin señal, y una
-//      consulta por cada tecleo no funciona sin conexión.
-//   2. Cero librerías de terceros en el cliente: el widget es un script remoto
-//      que se ejecuta en la misma página donde el ciudadano escribe su reporte.
-//   3. Anonimato: sin llamadas externas, nadie fuera de esta app se entera de
-//      qué colonia está buscando quien reporta.
-//
-// Para actualizarlo, vuelve a consultar la API y regenera este archivo.
-// Datos por Códigos Postales de México (correosmexico.com.mx).
-//
-// n = nombre del asentamiento · cp = código postal · t = tipo
 
 const ASENTAMIENTOS_MEXICALI = [
     { n: "1 de Diciembre", cp: 21260, t: "Colonia" },

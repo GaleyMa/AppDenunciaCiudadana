@@ -1,16 +1,10 @@
-// src/reportes/store/ReporteStore.js — capa de persistencia (IndexedDB nativa, sin librerías).
-//
-// Responsabilidad única: guardar y leer reportes. No sabe nada de UI ni de
-// reglas de negocio (validar/descartar/fusionar viven en GestorValidacion).
 
 const DATABASE_NAME = 'denuncia_ciudadana';
 export const BASE_PRUEBAS = 'denuncia_ciudadana_pruebas';
-const DATABASE_VERSION = 2; // v2: id UUID (sin autoIncrement) + índice 'estado'
+const DATABASE_VERSION = 2;
 const STORE_NAME = 'reportes';
 const INDEX_ESTADO = 'estado';
 
-// Estados válidos de un reporte. Se exportan para que el panel y el gestor
-// no anden repitiendo strings sueltos.
 export const ESTADOS = Object.freeze({
     PENDIENTE: 'pendiente',
     VALIDADO: 'validado',
@@ -34,10 +28,9 @@ function generarId() {
         return crypto.randomUUID();
     }
 
-    // Fallback: UUID v4 armado a mano a partir de 16 bytes aleatorios.
     const bytes = crypto.getRandomValues(new Uint8Array(16));
-    bytes[6] = (bytes[6] & 0x0f) | 0x40; // versión 4
-    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variante RFC 4122
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
@@ -51,10 +44,6 @@ export default class ReporteStore {
         this.nombreBase = nombreBase;
         this.db = null;
         this.ready = null;
-        // La apertura de IndexedDB es asíncrona y el constructor no puede
-        // esperarla. En vez de dejar `this.db` en null hasta que termine
-        // (lo que hacía fallar a quien guardara un reporte muy rápido),
-        // guardamos la PROMESA y cada método hace await de ella.
         this.#conectar();
     }
 
@@ -62,9 +51,6 @@ export default class ReporteStore {
     #conectar() {
         this.ready = this.#abrirBase();
 
-        // Evita un "unhandled rejection" en consola si la base falla y nadie
-        // llamó todavía a ningún método. El error sigue llegando a quien
-        // haga await de this.ready más adelante.
         this.ready.catch(() => { });
 
         return this.ready;
@@ -90,40 +76,30 @@ export default class ReporteStore {
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
 
-                // IndexedDB NO permite cambiar keyPath ni autoIncrement de un
-                // object store existente: la única vía es borrarlo y volverlo
-                // a crear. Esto descarta los reportes guardados con la v1
-                // (ids numéricos), que en desarrollo son datos de prueba.
                 if (db.objectStoreNames.contains(STORE_NAME)) {
                     db.deleteObjectStore(STORE_NAME);
                 }
 
                 const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
 
-                // Índice que hacía falta: sin él, getReportsByState() truena.
-                // Es el que usa el ValidacionPanel para listar los pendientes.
                 objectStore.createIndex(INDEX_ESTADO, 'estado', { unique: false });
             };
 
             request.onsuccess = (event) => {
                 const db = event.target.result;
 
-                // Si otra pestaña pide una versión más nueva (o borran la
-                // base), cerramos esta conexión para no bloquear la migración
-                // y olvidamos la promesa: la próxima operación reabrirá.
                 db.onversionchange = () => {
                     db.close();
                     this.db = null;
                     this.ready = null;
                 };
 
-                this.db = db; // se mantiene por comodidad al depurar
+                this.db = db;
                 resolve(db);
             };
 
             request.onerror = (event) => reject(event.target.error);
 
-            // Ocurre cuando otra pestaña tiene abierta la versión anterior.
             request.onblocked = () => reject(new Error(
                 'La migración de la base está bloqueada: cierra las demás pestañas de la app.'
             ));
@@ -210,7 +186,6 @@ export default class ReporteStore {
                     return;
                 }
 
-                // El id nunca se sobrescribe, aunque venga en los cambios.
                 const actualizado = { ...reporte, ...cambios, id: reporte.id };
                 const updateRequest = objectStore.put(actualizado);
 

@@ -8,6 +8,8 @@
     <meta name="description"
         content="Reporta de forma anónima baches, luminarias apagadas, basura y otras fallas urbanas en Mexicali, B.C.">
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="img/icono-192.png">
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
     <link rel="stylesheet" href="style.css">
     <title>Denuncia Ciudadana Mexicali, B.C.</title>
 </head>
@@ -55,8 +57,6 @@
 
                 <div class="campo">
                     <label for="reporte-ubicacion">Colonia o código postal</label>
-                    <!-- Autocompletado propio (ver ColoniaAutocomplete.js). El campo
-                         acepta texto libre: si tu colonia no aparece, escríbela igual. -->
                     <div class="autocompletar">
                         <input type="text" id="reporte-ubicacion" placeholder="Escribe tu colonia…"
                             autocomplete="off" role="combobox" aria-expanded="false"
@@ -76,7 +76,6 @@
 
                 <div class="campo">
                     <label for="reporte-categoria">Categoría</label>
-                    <!-- Las opciones las agrega ReporteForm desde datos/categorias.js -->
                     <select id="reporte-categoria">
                         <option value="">Selecciona…</option>
                     </select>
@@ -94,11 +93,8 @@
     </footer>
     </div>
 
-    <!-- Panel de validación. Solo se llena si el hash de la URL trae el token
-         correcto (ver src/config.js); si no, ni siquiera se muestra que existe. -->
     <div id="vista-panel" class="panel" hidden></div>
 
-    <!-- Tablero público de estadísticas (Incremento 3). Vive en #/tablero. -->
     <div id="vista-tablero" class="panel" hidden></div>
 
     <script type="module" src="app.js"></script>

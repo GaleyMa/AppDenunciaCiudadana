@@ -1,10 +1,3 @@
-// src/reportes/tablero/graficas.js — gráficas en SVG, sin librerías.
-//
-// Todas las gráficas del tablero son de UNA sola serie (cuántos reportes), así
-// que el color no codifica identidad: es un solo verde para las barras y una
-// rampa secuencial de un solo tono para el mapa, de claro (pocos) a oscuro
-// (muchos). Nada de arcoíris ni de "cada barra de un color", que pintaría de
-// categórico algo que es magnitud.
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -88,8 +81,6 @@ export function barrasHorizontales(datos, { unidad = 'reportes' } = {}) {
         grupo.appendChild(texto(dato.etiqueta, {
             x: IZQUIERDA, y: y + 9, class: 'grafica-etiqueta', fill: TINTA_TENUE,
         }));
-        // rx redondea solo visualmente el extremo del dato; el origen queda
-        // anclado en la línea base.
         grupo.appendChild(crear('rect', {
             x: IZQUIERDA, y: y + 14, width: ancho, height: ALTO_BARRA - 8,
             rx: 4, fill: SERIE,
@@ -114,21 +105,17 @@ export function serieTemporal(datos) {
     const ANCHO = 320, ALTO = 130, BASE = ALTO - 22;
     const maximo = Math.max(1, ...datos.map((d) => d.valor));
     const paso = ANCHO / Math.max(datos.length, 1);
-    const anchoBarra = Math.max(3, Math.min(26, paso - 4)); // deja el hueco entre barras
+    const anchoBarra = Math.max(3, Math.min(26, paso - 4));
 
     const svg = crear('svg', {
         viewBox: `0 0 ${ANCHO} ${ALTO}`, class: 'grafica', role: 'img',
         'aria-label': `Reportes validados por semana, ${datos.length} semanas`,
     });
 
-    // Línea base tenue; sin cuadrícula punteada, que solo mete ruido.
     svg.appendChild(crear('line', {
         x1: 0, y1: BASE, x2: ANCHO, y2: BASE, stroke: EJE, 'stroke-width': 1,
     }));
 
-    // Se rotulan solo dos barras: la más alta y la última. Un número sobre
-    // cada barra no se lee, y dejar los valores únicamente en el tooltip
-    // volvería el dato inaccesible sin ratón.
     const iMaximo = datos.findIndex((d) => d.valor === maximo);
     const iUltimo = datos.length - 1;
 
@@ -153,7 +140,6 @@ export function serieTemporal(datos) {
         svg.appendChild(grupo);
     });
 
-    // Solo primera y última etiqueta: una por barra sería ilegible.
     if (datos.length) {
         svg.appendChild(texto(datos[0].etiqueta, {
             x: 0, y: ALTO - 6, class: 'grafica-eje', fill: TINTA_TENUE,
@@ -193,48 +179,30 @@ const colorDe = (valor, cortes) => {
  * @param {(cp: number) => void} [opciones.alSeleccionar] al tocar una zona.
  */
 export function coropletico(geojson, valores, { fondo = null, alSeleccionar = null } = {}) {
-    // El tamaño lo manda la imagen de fondo, que se dibuja a su resolución
-    // natural: encogerla volvía ilegibles los nombres de calle, que son
-    // justo lo que sirve para ubicarse. El mapa se recorre dentro de su marco.
     const ANCHO = fondo?.ancho ?? 760;
     const maximo = Math.max(0, ...valores.values());
     const cortes = calcularCortes(maximo);
 
-    // Encuadre: la mancha urbana, no todo el municipio (que llega hasta el
-    // golfo y dejaría la ciudad como un punto).
     const CENTRO = { lat: 32.6245, lon: -115.4523 };
     const cerca = (f) => {
         const [x, y] = centroide(f);
         return Math.abs(y - CENTRO.lat) < 0.22 && Math.abs(x - CENTRO.lon) < 0.26;
     };
 
-    // Se dibuja el entorno...
     const visibles = geojson.features.filter(
         (f) => cerca(f) || (valores.get(f.properties.cp) ?? 0) > 0,
     );
 
-    // ...y el encuadre lo mandan los polígonos urbanos, que se reconocen por
-    // ser mucho más chicos que los ejidales. Se toma el 85% de menor
-    // superficie: con la mitad, como estaba antes, el marco se ceñía al casco
-    // viejo y dejaba fuera 30 zonas de verdad —Pórticos, La Condesa,
-    // Xochimilco, Villa del Rey, El Coloso—, que se dibujaban pero quedaban
-    // recortadas. Descartar el 15% más grande evita que dos o tres ejidos
-    // enormes estiren el mapa hasta el valle.
-    // Con imagen de fondo, el recuadro es EL DE LA IMAGEN: es la única forma de
-    // que las zonas caigan justo sobre sus calles. Sin ella se calcula igual
-    // que antes, por si el archivo no carga.
     const porArea = visibles.map((f) => [f, area(f)]).sort((a, b) => a[1] - b[1]);
     const urbanos = porArea.slice(0, Math.max(1, Math.ceil(porArea.length * 0.85))).map(([f]) => f);
 
     const caja = fondo
         ? { minX: fondo.oeste, maxX: fondo.este, minY: fondo.sur, maxY: fondo.norte }
         : limites(urbanos);
-    // Corrección por latitud: sin ella la ciudad sale estirada a lo ancho.
     const escalaX = Math.cos((CENTRO.lat * Math.PI) / 180);
     const anchoGeo = (caja.maxX - caja.minX) * escalaX;
     const altoGeo = caja.maxY - caja.minY;
 
-    // El alto sale de la proporción real del terreno; el ancho es fijo.
     const k = ANCHO / anchoGeo;
     const ALTO = fondo?.alto ?? Math.round(altoGeo * k);
 
@@ -249,7 +217,6 @@ export function coropletico(geojson, valores, { fondo = null, alSeleccionar = nu
         'aria-label': 'Mapa de reportes validados por código postal',
     });
 
-    // La imagen va al fondo de todo; las zonas se pintan encima translúcidas.
     if (fondo?.imagen) {
         const imagen = crear('image', {
             href: fondo.imagen, x: 0, y: 0, width: ANCHO, height: ALTO,
@@ -262,8 +229,6 @@ export function coropletico(geojson, valores, { fondo = null, alSeleccionar = nu
     for (const rasgo of visibles) {
         const cp = rasgo.properties.cp;
         const valor = valores.get(cp) ?? 0;
-        // Las zonas sin reportes no se rellenan: dejan ver el mapa. Las que sí
-        // tienen van translúcidas, para que las calles se sigan leyendo debajo.
         const camino = crear('path', {
             d: aRuta(rasgo.geometry, proyecta),
             fill: valor ? colorDe(valor, cortes) : 'none',
@@ -292,12 +257,10 @@ export function coropletico(geojson, valores, { fondo = null, alSeleccionar = nu
             camino.setAttribute('stroke', elegida ? '#0f5132' : (tiene ? '#ffffff' : '#9aa1a8'));
             camino.setAttribute('stroke-width', elegida ? 3 : (tiene ? 1.2 : 0.6));
             camino.setAttribute('stroke-opacity', elegida ? 1 : (tiene ? 0.9 : 0.5));
-            if (elegida) svg.appendChild(camino);   // al frente
+            if (elegida) svg.appendChild(camino);
         }
     };
 
-    // Dónde cae el centro de la ciudad dentro del dibujo, para abrir el mapa
-    // mirando ahí y no en una esquina del valle.
     const [centroX, centroY] = proyecta([CENTRO.lon, CENTRO.lat]).map(Number);
 
     return { svg, cortes, maximo, marcar, centro: { x: centroX, y: centroY }, ancho: ANCHO, alto: ALTO };
@@ -320,7 +283,6 @@ export function leyendaMapa(cortes) {
         const fila = document.createElement('li');
         const muestra = document.createElement('span');
         muestra.className = 'muestra';
-        // El primer escalón no se rellena en el mapa: deja ver las calles.
         if (i === 0) muestra.classList.add('muestra-vacia');
         else muestra.style.backgroundColor = RAMPA[i];
         fila.append(muestra, document.createTextNode(rotulo));
@@ -329,8 +291,6 @@ export function leyendaMapa(cortes) {
 
     return contenedor;
 }
-
-// ─── Utilidades geométricas ─────────────────────────────────────────────────
 
 function anillos(geometria) {
     return geometria.type === 'Polygon'

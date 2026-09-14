@@ -1,4 +1,3 @@
-// src/reportes/auth/PantallaLogin.js — acceso de moderadores.
 
 const crear = (etiqueta, clase, texto) => {
     const nodo = document.createElement(etiqueta);
@@ -60,7 +59,6 @@ export default function initPantallaLogin(contenedor, sesion, alEntrar) {
 
         try {
             await sesion.iniciar(correo.value, clave.value);
-            // La contraseña no se queda en el DOM más de lo necesario.
             clave.value = '';
             alEntrar();
         } catch (fallo) {

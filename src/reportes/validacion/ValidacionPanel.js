@@ -1,12 +1,3 @@
-// src/reportes/validacion/ValidacionPanel.js — capa de UI del panel de moderación.
-//
-// Responsabilidad única: pintar los reportes pendientes y disparar las acciones.
-// Toda la regla de negocio (qué estado queda, qué es obligatorio) vive en
-// GestorValidacion; aquí solo se dibuja y se escucha.
-//
-// ANONIMATO: el panel muestra foto, categoría, ubicación, fecha e id del
-// reporte. No hay nada más que mostrar — los reportes nunca guardan datos de
-// quien los levantó.
 
 import { MOTIVOS_DESCARTE } from './GestorValidacion.js';
 import { etiquetaCategoria } from '../datos/categorias.js';
@@ -29,8 +20,6 @@ const idCorto = (id) => id.slice(0, 8);
  * @returns {{render: () => Promise<void>}} para volver a pintar desde fuera.
  */
 export default function initValidacionPanel(contenedor, gestor) {
-    // Las URLs de las miniaturas se liberan en cada repintado: si no, cada
-    // render deja blobs vivos en memoria hasta recargar la página.
     let urlsMiniaturas = [];
 
     const liberarMiniaturas = () => {
@@ -41,8 +30,6 @@ export default function initValidacionPanel(contenedor, gestor) {
     const crear = (etiqueta, clase, texto) => {
         const elemento = document.createElement(etiqueta);
         if (clase) elemento.className = clase;
-        // textContent y no innerHTML: la ubicación la escribe el ciudadano y el
-        // panel es justo donde se lee ese texto.
         if (texto !== undefined) elemento.textContent = texto;
         return elemento;
     };
@@ -85,8 +72,6 @@ export default function initValidacionPanel(contenedor, gestor) {
         confirmar.type = 'button';
         confirmar.addEventListener('click', () => {
             const elegido = grupo.querySelector('input:checked');
-            // Sin motivo no se llama al gestor; y aunque se llamara, él también
-            // lo rechaza. La regla vive en la lógica, no en la pantalla.
             if (!elegido) {
                 avisar('Selecciona un motivo para descartar el reporte.', true);
                 return;
@@ -118,8 +103,6 @@ export default function initValidacionPanel(contenedor, gestor) {
             return caja;
         }
 
-        // Un <select> y no un campo de texto: el moderador no debería teclear
-        // un UUID a mano.
         const select = document.createElement('select');
         candidatos.forEach((candidato) => {
             const opcion = document.createElement('option');
@@ -148,8 +131,6 @@ export default function initValidacionPanel(contenedor, gestor) {
     const tarjetaReporte = (reporte) => {
         const tarjeta = crear('article', 'reporte');
 
-        // Dos orígenes posibles: el blob de IndexedDB (moderación local) o una
-        // URL firmada del bucket privado (moderación contra el servidor).
         const miniatura = crear('div', 'miniatura');
         let fuente = null;
         if (reporte.foto instanceof Blob) {
@@ -204,10 +185,6 @@ export default function initValidacionPanel(contenedor, gestor) {
             abierto?.remove();
             if (abierto?.dataset.tipo === 'fusion') return;
 
-            // Buscar los candidatos puede fallar (sin red, o una función que
-            // falta en el servidor). Sin este try, la promesa se rompía en
-            // silencio: el botón "no hacía nada" y no había forma de saber por
-            // qué.
             btnFusionar.disabled = true;
             try {
                 const caja = await formularioFusion(reporte, tarjeta);
@@ -243,7 +220,6 @@ export default function initValidacionPanel(contenedor, gestor) {
             return;
         }
 
-        // Más recientes primero: es el orden en que un moderador espera revisar.
         pendientes.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 
         contenedor.replaceChildren();
@@ -258,10 +234,6 @@ export default function initValidacionPanel(contenedor, gestor) {
 
         if (!pendientes.length) {
             const vacio = crear('p', 'sin-datos', 'No hay reportes pendientes por revisar.');
-            // IndexedDB se guarda por origen: los reportes capturados en
-            // 127.0.0.1 no se ven desde localhost (y al revés), aunque sea el
-            // mismo servidor y el mismo puerto. Es la confusión más fácil de
-            // tener en desarrollo, así que el panel la nombra.
             vacio.appendChild(document.createElement('br'));
             vacio.appendChild(crear('small', null,
                 `Si esperabas ver reportes, revisa que estés en el mismo origen donde los capturaste `

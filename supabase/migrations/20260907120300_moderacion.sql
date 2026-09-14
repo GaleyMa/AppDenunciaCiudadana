@@ -19,8 +19,6 @@ comment on table privado.moderadores is
     'Altas manuales. Se administra desde el panel de Supabase o con la service_role key.';
 
 alter table privado.moderadores enable row level security;
--- Sin políticas: nadie la lee desde la API. Solo la consultan funciones
--- SECURITY DEFINER.
 
 create or replace function privado.es_moderador()
 returns boolean
@@ -34,7 +32,6 @@ as $$
     );
 $$;
 
--- Cortafuegos común a todas las acciones de moderación.
 create or replace function privado.exigir_moderador()
 returns void
 language plpgsql
@@ -52,8 +49,6 @@ begin
     end if;
 end;
 $$;
-
--- ─── Cola de pendientes ─────────────────────────────────────────────────────
 
 create or replace function public.listar_pendientes(p_limite integer default 50)
 returns table (
@@ -79,12 +74,8 @@ begin
     where r.estado = 'pendiente'
     order by r.fecha desc
     limit least(greatest(coalesce(p_limite, 50), 1), 200);
-    -- Nótese que `coordenadas` no aparece en la lista de columnas: ni siquiera
-    -- un moderador la recibe.
 end;
 $$;
-
--- ─── Acciones ───────────────────────────────────────────────────────────────
 
 create or replace function public.validar_reporte(p_id uuid)
 returns uuid
@@ -124,8 +115,6 @@ declare
 begin
     perform privado.exigir_moderador();
 
-    -- El tipo enum ya obliga a que el motivo sea uno de los tres, pero un nulo
-    -- pasaría: descartar sin motivo no se permite.
     if p_motivo is null then
         raise exception 'Descartar exige un motivo.';
     end if;
@@ -173,8 +162,6 @@ begin
         raise exception 'El reporte original no existe.';
     end if;
 
-    -- Mismas reglas que GestorValidacion: nada de cadenas A→B→C, que romperían
-    -- el conteo de duplicados del tablero.
     if v_estado_original not in ('pendiente', 'validado') then
         raise exception 'El original debe estar pendiente o validado.';
     end if;
@@ -191,8 +178,6 @@ begin
     return v_id;
 end;
 $$;
-
--- ─── Permisos: solo cuentas con sesión ──────────────────────────────────────
 
 revoke all on function public.listar_pendientes(integer) from public;
 revoke all on function public.validar_reporte(uuid) from public;

@@ -1,8 +1,3 @@
-// src/reportes/datos/categorias.js
-//
-// Catálogo único de categorías. Lo usan el formulario (para armar el <select>)
-// y el panel de validación (para mostrar la etiqueta legible), así no hay dos
-// listas que se puedan desincronizar.
 
 const CATEGORIAS = [
     { valor: 'bache', etiqueta: 'Bache o pavimento roto' },

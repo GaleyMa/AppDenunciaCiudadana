@@ -14,13 +14,11 @@ grant insert on pruebas.resultados to anon, authenticated;
 grant usage on sequence pruebas.resultados_n_seq to anon, authenticated;
 grant execute on function pruebas.chk(boolean, text) to anon, authenticated;
 
--- Datos base
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'mod@ejemplo.mx'),
   ('bbbbbbbb-0000-4000-8000-000000000002', 'curioso@ejemplo.mx');
 insert into privado.moderadores (user_id, nombre) values ('aaaaaaaa-0000-4000-8000-000000000001', 'Moderadora');
 
--- ══ 1. El esquema privado es inalcanzable para anon ══
 do $$ declare v boolean; begin
   begin set local role anon; perform 1 from privado.reportes limit 1; v := false;
   exception when insufficient_privilege then v := true; end;
@@ -39,7 +37,6 @@ do $$ declare v boolean; begin
   reset role; perform pruebas.chk(v, 'una cuenta con sesion tampoco lee la tabla cruda');
 end $$;
 
--- ══ 2. Captura anónima ══
 do $$ declare v_ret uuid; v_col integer; begin
   select id into v_col from public.colonias where nombre = 'Nueva';
   set local role anon;
@@ -62,12 +59,7 @@ do $$ begin
   perform pruebas.chk((select categoria from privado.reportes where id='11111111-1111-4111-8111-111111111111') = 'bache', 'el reintento no pisa los datos originales');
 end $$;
 
--- ══ 3. Anonimato estructural: nada de coordenadas ni texto libre en lo público ══
 do $$ declare v integer; begin
-  -- Nada de lo publico puede traer la ubicacion exacta ni el texto libre.
-  -- `geom` solo se admite en los dos catalogos de geografia de la ciudad
-  -- (colonias y codigos_postales), que son publicos a proposito y los necesita
-  -- el mapa; en cualquier otra relacion seria una fuga.
   select count(*) into v from information_schema.columns
    where table_schema = 'public'
      and (column_name ilike '%coordenad%'
@@ -88,7 +80,6 @@ do $$ declare v boolean; begin
   reset role; perform pruebas.chk(v, 'anon SI puede leer los agregados');
 end $$;
 
--- ══ 4. Moderación: hace falta sesión y alta de moderador ══
 do $$ declare v boolean; begin
   begin set local role anon; perform public.validar_reporte('11111111-1111-4111-8111-111111111111'); v := false;
   exception when insufficient_privilege then v := true; end;
@@ -113,7 +104,6 @@ do $$ declare v text; begin
   reset role; perform pruebas.chk(v like '%permisos de moderaci%', 'cuenta con sesion pero sin alta de moderador se rechaza');
 end $$;
 
--- ══ 5. Acciones del moderador ══
 do $$ declare v_cols text; begin
   set local role authenticated;
   set local request.jwt.claim.sub = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -156,7 +146,6 @@ do $$ declare v text; begin
   reset role; perform pruebas.chk(v like '%pendiente o validado%', 'no se puede fusionar contra un descartado (sin cadenas A->B->C)');
 end $$;
 
--- ══ 6. Reglas de integridad en la propia tabla ══
 do $$ declare v boolean; begin
   begin insert into privado.reportes (id, categoria, estado) values (gen_random_uuid(), 'bache', 'descartado'); v := false;
   exception when check_violation then v := true; end;
@@ -169,7 +158,6 @@ do $$ declare v boolean; begin
   perform pruebas.chk(v, 'la tabla rechaza un fusionado sin ref_original');
 end $$;
 
--- ══ 7. Agregados del tablero ══
 do $$ declare v_col integer; begin
   select id into v_col from public.colonias where nombre = 'Nueva';
   perform pruebas.chk((select validados from public.estadisticas_por_colonia where colonia_id = v_col) = 1,
@@ -183,22 +171,28 @@ do $$ declare v_col integer; begin
   perform pruebas.chk((select colonia from public.top_colonias limit 1) = 'Nueva', 'top_colonias encabeza con la colonia con mas reportes');
 end $$;
 
--- ══ 8. Catálogo de colonias ══
 do $$ declare v boolean; begin
-  perform pruebas.chk((select count(*) from public.colonias) = 37, 'la semilla cargo las 37 colonias');
+  perform pruebas.chk((select count(*) from public.colonias) = 751,
+    'el catalogo verificado dejo 751 asentamientos (sustituye a las 37 colonias a mano)');
+  perform pruebas.chk((select count(*) from public.colonias where codigo_postal is null) = 0,
+    'todo asentamiento trae su codigo postal');
   begin set local role anon; insert into public.colonias (nombre) values ('Colonia Pirata'); v := false;
   exception when others then v := true; end;
   reset role; perform pruebas.chk(v, 'anon NO puede escribir en el catalogo de colonias');
 end $$;
 
-
--- ══ 9. Códigos postales y derivación server-side ══
 do $$ begin
-  perform pruebas.chk((select count(*) from public.codigos_postales) = 231, 'se cargaron los 231 poligonos de CP');
+  -- Se cargan 231 poligonos y la migracion del catalogo borra los que no
+  -- corresponden a ningun asentamiento de Mexicali (los de Tecate, sobre todo).
+  perform pruebas.chk((select count(*) from public.codigos_postales) = 161,
+    'quedan 161 poligonos de CP, ya sin los que no son de Mexicali');
+  perform pruebas.chk((select count(*) from public.codigos_postales cp
+                        where not exists (select 1 from public.colonias c
+                                           where c.codigo_postal = cp.codigo)) = 0,
+    'todo poligono corresponde a un CP con asentamientos');
 end $$;
 
 do $$ declare v integer; begin
-  -- El reporte 1 se creo con coordenadas del centro de Mexicali.
   select codigo_postal into v from privado.reportes where id = '11111111-1111-4111-8111-111111111111';
   perform pruebas.chk(v is not null and v between 21000 and 21999, 'el servidor derivo el CP desde las coordenadas: ' || coalesce(v::text,'NULO'));
 end $$;
@@ -209,7 +203,6 @@ do $$ declare v integer; begin
 end $$;
 
 do $$ declare v_id uuid := gen_random_uuid(); v integer; begin
-  -- Punto en medio del mar de Cortes: no cae en ningun CP ni cerca.
   set local role anon;
   perform public.crear_reporte(v_id, 'otro', null, 'fuera del area', 28.0, -112.0, null);
   reset role;
@@ -228,7 +221,8 @@ do $$ declare v_cp integer; begin
   select codigo_postal into v_cp from privado.reportes where id = '11111111-1111-4111-8111-111111111111';
   perform pruebas.chk((select validados from public.estadisticas_por_cp where codigo_postal = v_cp) = 1,
     'estadisticas_por_cp cuenta el reporte validado en su CP');
-  perform pruebas.chk((select count(*) from public.estadisticas_por_cp) = 231,
+  perform pruebas.chk((select count(*) from public.estadisticas_por_cp) =
+                      (select count(*) from public.codigos_postales),
     'el agregado por CP devuelve todos los poligonos, tambien los que van en cero');
 end $$;
 

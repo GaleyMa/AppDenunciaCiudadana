@@ -1,4 +1,3 @@
-// src/config.js — configuración de la app.
 
 /**
  * Token de acceso al panel de validación. La URL secreta es:
@@ -27,13 +26,6 @@ export const TOKEN_PANEL = 'd027312f69fd2b2874d67188bbc94576f971662f5878a47e';
 /** Prefijo de la ruta del panel dentro del hash. */
 export const RUTA_PANEL = '#/validacion/';
 
-// ─── Supabase (Incremento 3) ────────────────────────────────────────────────
-//
-// Estas dos constantes son PÚBLICAS por diseño y viajar en el bundle es lo
-// normal: la llave "publishable" solo permite lo que las políticas dejan pasar
-// (crear reportes y leer agregados). Lo que nunca debe aparecer aquí ni en
-// ningún archivo del repositorio es la llave secreta / service_role, que ignora
-// RLS y lee la tabla cruda completa.
 export const SUPABASE_URL = 'https://cyyteitpihfenbrudull.supabase.co/rest/v1';
 export const SUPABASE_ANON_KEY = 'sb_publishable_Gc0vbeyaIOUSndexZm65zw_c8Pn80yV';
 

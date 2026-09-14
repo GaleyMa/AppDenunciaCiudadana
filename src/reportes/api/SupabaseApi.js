@@ -1,8 +1,3 @@
-// src/reportes/api/SupabaseApi.js — cliente REST mínimo.
-//
-// No se usa @supabase/supabase-js: son ~40 KB para lo que aquí son dos
-// llamadas fetch. El proyecto es de cero librerías en el cliente y esto lo
-// respeta sin perder nada.
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_STORAGE_URL, BUCKET_FOTOS } from '../../config.js';
 
@@ -30,11 +25,8 @@ async function pedir(url, opciones = {}) {
         const respuesta = await fetch(url, { ...opciones, signal: corte.signal });
 
         if (!respuesta.ok) {
-            // PostgREST devuelve {code, message, hint} en los errores.
             const detalle = await respuesta.json().catch(() => ({}));
             const fallo = new Error(detalle.message || detalle.error || `HTTP ${respuesta.status}`);
-            // El código importa: no es lo mismo "se cayó la red" (reintentar)
-            // que "este archivo no se acepta" (no insistir).
             fallo.estado = respuesta.status;
             throw fallo;
         }
@@ -103,7 +95,7 @@ export async function firmarFotos(rutas, token, segundos = 3600) {
         body: JSON.stringify({ expiresIn: segundos, paths: rutas }),
     });
 
-    if (!respuesta.ok) return new Map(); // sin fotos, pero el panel sigue vivo
+    if (!respuesta.ok) return new Map();
 
     const firmadas = await respuesta.json();
     return new Map(firmadas

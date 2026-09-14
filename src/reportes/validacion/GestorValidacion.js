@@ -1,8 +1,3 @@
-// src/reportes/validacion/GestorValidacion.js — lógica de negocio del Incremento 2.
-//
-// Responsabilidad única: aplicar las reglas de validación sobre un reporte.
-// No toca el DOM ni abre IndexedDB: recibe el store y traduce cada acción a un
-// cambio de estado. Así se puede probar sin interfaz.
 
 import { ESTADOS } from '../store/ReporteStore.js';
 
@@ -61,8 +56,6 @@ export default class GestorValidacion {
             throw new Error('El reporte original no existe.');
         }
 
-        // Evita cadenas de fusión (A duplica a B, que a su vez duplicaba a C):
-        // el original tiene que ser un reporte vivo, no uno ya resuelto.
         if (![ESTADOS.PENDIENTE, ESTADOS.VALIDADO].includes(original.estado)) {
             throw new Error('El original debe estar pendiente o validado.');
         }

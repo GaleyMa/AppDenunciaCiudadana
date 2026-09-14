@@ -16,19 +16,14 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
     'reportes-fotos',
     'reportes-fotos',
-    false,                    -- privado: sin acceso anónimo de lectura
-    5242880,                  -- 5 MB por archivo
+    false,
+    5242880,
     array['image/jpeg', 'image/png', 'image/webp', 'image/heic']
 )
 on conflict (id) do update
     set public = excluded.public,
         file_size_limit = excluded.file_size_limit,
         allowed_mime_types = excluded.allowed_mime_types;
-
--- ─── ¿Quién es moderador? ───────────────────────────────────────────────────
--- Las políticas de storage se evalúan con los permisos de quien consulta, así
--- que necesitan una función que ese rol pueda ejecutar. Esta solo responde
--- sobre quien la llama, así que exponerla no dice nada de nadie más.
 
 create or replace function public.es_moderador()
 returns boolean
@@ -43,30 +38,18 @@ $fn$;
 revoke all on function public.es_moderador() from public;
 grant execute on function public.es_moderador() to anon, authenticated;
 
--- ─── Políticas del bucket ───────────────────────────────────────────────────
-
 drop policy if exists "fotos_subida_anonima" on storage.objects;
 drop policy if exists "fotos_lectura_moderadores" on storage.objects;
 
--- Cualquiera puede SUBIR (la app es anónima), pero solo a este bucket.
--- El tamaño y el tipo los limita el propio bucket.
 create policy "fotos_subida_anonima"
     on storage.objects for insert
     to anon, authenticated
     with check (bucket_id = 'reportes-fotos');
 
--- Leer, solo moderadores. Sin esto nadie puede firmar una URL de descarga.
 create policy "fotos_lectura_moderadores"
     on storage.objects for select
     to authenticated
     using (bucket_id = 'reportes-fotos' and public.es_moderador());
-
--- A propósito no hay políticas de update ni delete: una vez subida, la foto no
--- se sobrescribe ni se borra desde el cliente.
-
--- ─── crear_reporte recibe la ruta de la foto ────────────────────────────────
--- Se reemplaza la función en vez de agregar un parámetro, para no dejar dos
--- versiones y que PostgREST no sepa cuál llamar.
 
 drop function if exists public.crear_reporte(
     uuid, public.categoria_reporte, integer, text, double precision, double precision, timestamptz);
@@ -133,21 +116,6 @@ revoke all on function public.crear_reporte(
 grant execute on function public.crear_reporte(
     uuid, public.categoria_reporte, integer, text, double precision, double precision, timestamptz, text)
     to anon, authenticated;
-
--- ─── El moderador necesita la ruta para pedir la URL firmada ────────────────
--- listar_pendientes ya la devolvía; listar_moderables no la necesita (solo
--- sirve para elegir el original de una fusión).
-
--- ─── Adjuntar la foto a un reporte que ya se sincronizó sin ella ────────────
---
--- Los reportes levantados antes de que existiera Storage llegaron al servidor
--- sin imagen, y crear_reporte no los pisa (es idempotente). Esta función deja
--- que el mismo dispositivo, que todavía tiene la foto en IndexedDB, la suba
--- después.
---
--- Solo escribe si el reporte AÚN NO TIENE foto y sigue pendiente: no se puede
--- reemplazar una imagen ya adjunta ni tocar algo ya moderado. Hace falta
--- conocer el UUID del reporte, que es aleatorio y no se publica en ningún lado.
 
 create or replace function public.adjuntar_foto(p_id uuid, p_foto_ruta text)
 returns boolean

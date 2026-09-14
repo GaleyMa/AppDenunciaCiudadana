@@ -1,14 +1,8 @@
-// src/reportes/auth/SesionModerador.js — sesión del moderador.
-//
-// Autenticación real contra Supabase Auth, por REST y sin librerías. Sustituye
-// al token en la URL del Incremento 2, que era ofuscación: cualquiera que
-// abriera el código lo encontraba. Ahora el servidor exige sesión iniciada Y
-// alta en privado.moderadores para cada acción.
 
 import { SUPABASE_AUTH_URL, SUPABASE_ANON_KEY } from '../../config.js';
 
 const CLAVE = 'sesion_moderador';
-const MARGEN_RENOVACION = 60_000; // se renueva un minuto antes de vencer
+const MARGEN_RENOVACION = 60_000;
 
 /** Traduce los errores de Supabase, que llegan en inglés y en varias formas. */
 function explicar(detalle, estado) {
@@ -39,7 +33,6 @@ export default class SesionModerador {
             if (datos) localStorage.setItem(CLAVE, JSON.stringify(datos));
             else localStorage.removeItem(CLAVE);
         } catch {
-            // En modo privado la sesión vive solo en memoria. Aceptable.
         }
     }
 
@@ -101,7 +94,6 @@ export default class SesionModerador {
         this.#guardar(null);
 
         if (!token) return;
-        // Si falla, la sesión local ya se borró: el usuario queda fuera igual.
         await fetch(`${SUPABASE_AUTH_URL}/logout`, {
             method: 'POST',
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },

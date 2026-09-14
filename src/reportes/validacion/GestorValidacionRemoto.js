@@ -1,12 +1,3 @@
-// src/reportes/validacion/GestorValidacionRemoto.js — moderación contra el servidor.
-//
-// Expone la MISMA interfaz que GestorValidacion (el local), así que
-// ValidacionPanel funciona con cualquiera de los dos sin enterarse: pendientes,
-// validar, descartar, fusionar y candidatosFusion.
-//
-// Aquí las reglas no se aplican: se aplican en el servidor, que es quien manda.
-// Las comprobaciones que quedan de este lado son solo para dar un mensaje claro
-// sin gastar un viaje de red.
 
 import { rpc, firmarFotos } from '../api/SupabaseApi.js';
 import { MOTIVOS_DESCARTE } from './GestorValidacion.js';
@@ -41,7 +32,6 @@ export default class GestorValidacionRemoto {
         try {
             return await rpc(nombre, parametros, token);
         } catch (error) {
-            // El servidor responde en inglés cuando el token ya no sirve.
             if (/JWT|token|expired/i.test(error.message)) {
                 throw new Error('Tu sesión expiró. Vuelve a entrar.');
             }
@@ -52,7 +42,6 @@ export default class GestorValidacionRemoto {
     async pendientes() {
         const filas = await this.#llamar('listar_pendientes', { p_limite: 50 });
 
-        // Las fotos se firman de una sola vez, no una petición por reporte.
         const rutas = filas.map((f) => f.foto_ruta).filter(Boolean);
         const firmadas = rutas.length
             ? await firmarFotos(rutas, await this.sesion.token())

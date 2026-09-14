@@ -14,8 +14,6 @@ set search_path = public, extensions;
 
 create index codigos_postales_geom_idx on public.codigos_postales using gist (geom);
 
--- ─── El reporte guarda su CP ────────────────────────────────────────────────
-
 alter table privado.reportes
     add column codigo_postal integer references public.codigos_postales (codigo);
 
@@ -23,8 +21,6 @@ create index reportes_cp_idx on privado.reportes (codigo_postal);
 
 comment on column privado.reportes.codigo_postal is
     'Derivado por el servidor desde las coordenadas. Es la forma agregada y publicable de la ubicación.';
-
--- ─── Derivación ─────────────────────────────────────────────────────────────
 
 create or replace function privado.cp_de_punto(p extensions.geography)
 returns integer
@@ -34,19 +30,13 @@ security definer
 set search_path = public, extensions, pg_temp
 as $fn$
     select coalesce(
-        -- El punto cae dentro de un polígono.
         (select cp.codigo from public.codigos_postales cp
           where extensions.st_intersects(cp.geom, p) limit 1),
-        -- O cayó en una rendija entre polígonos (van simplificados, así que las
-        -- fronteras no encajan al milímetro): se toma el más cercano dentro de
-        -- 1 km. Más lejos que eso, se deja nulo en vez de inventar ubicación.
         (select cp.codigo from public.codigos_postales cp
           where extensions.st_dwithin(cp.geom, p, 1000)
           order by extensions.st_distance(cp.geom, p) limit 1)
     );
 $fn$;
-
--- ─── crear_reporte ahora calcula el CP ──────────────────────────────────────
 
 create or replace function public.crear_reporte(
     p_id              uuid,
@@ -101,10 +91,6 @@ begin
     return p_id;
 end;
 $fn$;
-
--- ─── Vista para el coroplético ──────────────────────────────────────────────
--- Devuelve TODOS los CP, incluidos los que van en cero: el mapa necesita
--- pintarlos también.
 
 create or replace view public.estadisticas_por_cp as
 select

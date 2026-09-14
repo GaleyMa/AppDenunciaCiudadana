@@ -20,15 +20,11 @@ create or replace function public.crear_reporte(
 returns uuid
 language plpgsql
 security definer
--- search_path fijo: sin esto, un search_path manipulado podría hacer que la
--- función resuelva otros objetos con los privilegios del dueño.
 set search_path = privado, public, extensions, pg_temp
 as $$
 declare
     v_fecha timestamptz := coalesce(p_fecha, now());
 begin
-    -- El id lo trae el cliente (crypto.randomUUID). Reintentar la cola offline
-    -- no debe duplicar nada.
     if p_id is null then
         raise exception 'El reporte necesita un id generado en el cliente.';
     end if;
@@ -41,7 +37,6 @@ begin
         raise exception 'Longitud fuera de rango.';
     end if;
 
-    -- Sin fechas del futuro: un reloj mal puesto ensuciaría la serie semanal.
     if v_fecha > now() + interval '1 day' then
         v_fecha := now();
     end if;
@@ -63,24 +58,12 @@ begin
     )
     on conflict (id) do nothing;
 
-    -- Se devuelve el id que mandó el cliente, no una fila: la función escribe,
-    -- no es una vía para leer nada.
     return p_id;
 end;
 $$;
 
 comment on function public.crear_reporte is
     'Alta anónima de un reporte. Idempotente por id, para que la cola offline pueda reintentar.';
-
--- ─── Vistas de agregación ───────────────────────────────────────────────────
---
--- Son SECURITY DEFINER (comportamiento por omisión de las vistas: corren con
--- los permisos de su dueño), que es justo lo que se busca aquí: leen la tabla
--- privada y publican solo conteos. El linter de Supabase marca estas vistas;
--- en este caso es intencional y es el mecanismo de anonimización.
---
--- Todas cuentan SOLO reportes validados: lo no revisado o descartado no
--- alimenta el tablero público.
 
 create or replace view public.estadisticas_por_colonia as
 select
@@ -112,8 +95,6 @@ where validados > 0
 order by validados desc, colonia asc
 limit 5;
 
--- Serie por semana. Se trunca a semana a propósito: el tablero no necesita la
--- hora exacta de un reporte, y publicarla acerca el dato a ser individual.
 create or replace view public.serie_semanal as
 select
     date_trunc('week', r.fecha)::date as semana,
@@ -124,8 +105,6 @@ where r.estado = 'validado'
 group by 1
 order by 1;
 
--- Cuántos duplicados se fusionaron contra cada reporte validado, por colonia:
--- mide la insistencia ciudadana sobre un mismo problema.
 create or replace view public.duplicados_por_colonia as
 select
     c.id        as colonia_id,
@@ -147,8 +126,6 @@ select
       where r.estado = 'validado'
       group by r.categoria order by count(*) desc, r.categoria asc limit 1)      as categoria_mas_reportada;
 
--- ─── Permisos de la API pública ─────────────────────────────────────────────
-
 grant usage on schema public to anon, authenticated;
 
 grant select on
@@ -160,7 +137,5 @@ grant select on
     public.resumen_general
 to anon, authenticated;
 
--- Por omisión PostgreSQL deja ejecutar funciones a todo el mundo: se revoca y
--- se concede a propósito.
 revoke all on function public.crear_reporte(uuid, public.categoria_reporte, integer, text, double precision, double precision, timestamptz) from public;
 grant execute on function public.crear_reporte(uuid, public.categoria_reporte, integer, text, double precision, double precision, timestamptz) to anon, authenticated;

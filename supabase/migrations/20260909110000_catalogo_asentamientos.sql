@@ -24,7 +24,6 @@ alter table public.colonias add column if not exists tipo text;
 comment on column public.colonias.codigo_postal is
     'CP del asentamiento según el catálogo de Correos de México.';
 
--- Fuera el catálogo hecho a mano (es el que no trae código postal).
 delete from public.colonias where codigo_postal is null;
 
 alter table public.colonias drop constraint if exists colonias_nombre_cp_key;
@@ -785,11 +784,6 @@ insert into public.colonias (nombre, codigo_postal, tipo) values
 on conflict (nombre, codigo_postal) do nothing;
 
 create index if not exists colonias_cp_idx on public.colonias (codigo_postal);
-
--- ─── Fuera los polígonos que no son de Mexicali ─────────────────────────────
--- El GeoJSON de origen venía por estado: en el rango 21000–21999 también hay
--- códigos de Tecate, que se colaron al mapa. Se quitan salvo que algún reporte
--- ya los esté usando.
 
 delete from public.codigos_postales cp
  where cp.codigo not in (select distinct c.codigo_postal from public.colonias c where c.codigo_postal is not null)

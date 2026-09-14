@@ -1,4 +1,3 @@
-/* style.css — mobile-first, una sola columna. Sin frameworks. */
 
 :root {
     --verde: #0f5132;
@@ -24,8 +23,6 @@ body {
     line-height: 1.5;
 }
 
-/* --- Encabezado --- */
-
 .encabezado {
     background-color: var(--verde);
     color: #fff;
@@ -39,7 +36,6 @@ body {
     line-height: 1.25;
 }
 
-/* "Mexicali, B.C." en su propio renglón, más discreto que el título. */
 .encabezado h1 span {
     display: block;
     font-size: 0.95rem;
@@ -56,8 +52,6 @@ body {
     font-size: 1rem;
     opacity: 0.9;
 }
-
-/* --- Contenido --- */
 
 main {
     max-width: 460px;
@@ -108,8 +102,6 @@ main {
     margin: 0;
     font-size: 0.85rem;
 }
-
-/* --- Formulario --- */
 
 form {
     display: flex;
@@ -179,9 +171,6 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* --- Autocompletado de colonias --- */
-
-/* El contenedor es la referencia de posición del desplegable. */
 .autocompletar {
     position: relative;
 }
@@ -209,14 +198,11 @@ button:disabled {
     cursor: pointer;
 }
 
-/* .activa la pone el JS al navegar con las flechas del teclado. */
 .sugerencias li:hover,
 .sugerencias li.activa {
     background-color: #e8f3ec;
     color: var(--verde);
 }
-
-/* --- Mensajes --- */
 
 .msg-error,
 .msg-exito {
@@ -238,8 +224,6 @@ button:disabled {
     color: var(--exito);
 }
 
-/* --- Pie --- */
-
 footer {
     max-width: 460px;
     margin: 0 auto;
@@ -253,7 +237,6 @@ footer p {
     margin: 0;
 }
 
-/* En pantallas grandes solo se ensancha un poco: sigue siendo una columna. */
 @media (min-width: 620px) {
     main,
     footer {
@@ -294,7 +277,6 @@ footer p {
     opacity: 0.9;
 }
 
-/* Mensaje de resultado de la última acción. Vacío no ocupa espacio. */
 .panel-aviso {
     margin: 0;
     font-size: 0.9rem;
@@ -378,7 +360,6 @@ footer p {
     font-size: 0.75rem;
 }
 
-/* Los botones y el detalle ocupan el ancho completo de la tarjeta. */
 .acciones,
 .accion-detalle {
     grid-column: 1 / -1;
@@ -523,8 +504,6 @@ footer p {
     margin: 0 0 14px;
 }
 
-/* --- Números gruesos --- */
-
 .tarjetas {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -553,8 +532,6 @@ footer p {
     color: var(--texto-suave);
 }
 
-/* --- Gráficas --- */
-
 .grafica {
     display: block;
     width: 100%;
@@ -562,20 +539,16 @@ footer p {
     margin-bottom: 6px;
 }
 
-/* El mapa NO se encoge al ancho del contenedor: se dibuja a tamaño completo y
-   su marco es el que se desplaza. */
 .mapa-marco {
     overflow: auto;
-    /* Sin esto, el SVG de 1520 px impone su ancho mínimo al contenedor: en la
-       rejilla de escritorio la columna del mapa se estiraba y empujaba las
-       gráficas fuera de la pantalla. */
+    
     min-width: 0;
     max-width: 100%;
     max-height: 340px;
     border: 1px solid var(--borde);
     border-radius: 8px;
     background-color: #fff;
-    /* Deja que el dedo recorra el mapa sin arrastrar la página entera. */
+    
     touch-action: pan-x pan-y;
     overscroll-behavior: contain;
 }
@@ -637,7 +610,6 @@ footer p {
     border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-/* "Sin reportes" no se pinta en el mapa: se deja ver el mapa base. */
 .muestra-vacia {
     background-color: transparent;
     border: 1px dashed #9aa1a8;
@@ -649,7 +621,6 @@ footer p {
     color: var(--texto-suave);
 }
 
-/* Flota sobre la gráfica; se coloca desde JS. */
 .viz-tooltip {
     position: fixed;
     z-index: 50;
@@ -661,8 +632,6 @@ footer p {
     font-size: 0.78rem;
     max-width: 220px;
 }
-
-/* --- Tablas --- */
 
 .tabla {
     width: 100%;
@@ -712,7 +681,6 @@ footer p {
     color: var(--texto-suave);
 }
 
-/* Valor de texto (no una cifra): más chico, para que quepa en la tarjeta. */
 .dato-valor.dato-texto {
     font-size: 1rem;
     line-height: 1.25;
@@ -758,7 +726,6 @@ footer p {
     margin-top: 14px;
 }
 
-/* Código postal del asentamiento elegido, y detalle en las sugerencias. */
 .estado-cp {
     display: inline-block;
     margin-top: 6px;
@@ -792,7 +759,7 @@ footer p {
 
 .mapa .zona {
     transition: fill-opacity 0.1s;
-    /* Las zonas sin relleno también deben poder tocarse. */
+    
     pointer-events: all;
 }
 
@@ -889,12 +856,10 @@ footer p {
 
     #vista-tablero .rejilla > .tarjeta {
         margin-bottom: 0;
-        /* Los elementos de una rejilla no se encogen por debajo de su
-           contenido a menos que se les diga. */
+        
         min-width: 0;
     }
-
-    /* El mapa ocupa la columna ancha y toda la altura de la fila. */
+    
     #vista-tablero .rejilla > .bloque-mapa {
         grid-row: span 3;
     }
@@ -902,8 +867,7 @@ footer p {
     #vista-tablero .dato-valor:not(.dato-texto) {
         font-size: 2rem;
     }
-
-    /* En escritorio hay altura de sobra para ver más ciudad de una vez. */
+    
     #vista-tablero .mapa-marco {
         max-height: 520px;
     }

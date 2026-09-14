@@ -31,21 +31,18 @@ SALIDA_IMAGEN = RAIZ / 'src/reportes/datos/mapa-base-mexicali.webp'
 SALIDA_MARCO = RAIZ / 'src/reportes/datos/mapa-base-marco.json'
 
 ZOOM = 13
-ANCHO_FINAL = 1520          # suficiente para el mapa de 760 px en pantallas 2x
+ANCHO_FINAL = 1520
 CENTRO = (32.6245, -115.4523)
 AGENTE = 'DenunciaCiudadanaMexicali/1.0 (proyecto academico; generacion unica de mapa base)'
-
 
 def anillos(geometria):
     if geometria['type'] == 'Polygon':
         return geometria['coordinates']
     return [anillo for poligono in geometria['coordinates'] for anillo in poligono]
 
-
 def centro(rasgo):
     puntos = [p for anillo in anillos(rasgo['geometry']) for p in anillo]
     return (sum(p[0] for p in puntos) / len(puntos), sum(p[1] for p in puntos) / len(puntos))
-
 
 def area(rasgo):
     total = 0
@@ -55,7 +52,6 @@ def area(rasgo):
             suma += anillo[i][0] * anillo[i + 1][1] - anillo[i + 1][0] * anillo[i][1]
         total += abs(suma) / 2
     return total
-
 
 def recuadro_urbano():
     """Mismo criterio que usa el mapa: el 85% de polígonos de menor superficie."""
@@ -68,7 +64,6 @@ def recuadro_urbano():
     ys = [p[1] for f in urbanos for a in anillos(f['geometry']) for p in a]
     return {'oeste': min(xs), 'este': max(xs), 'sur': min(ys), 'norte': max(ys)}
 
-
 def a_mosaico(lon, lat, zoom):
     """Coordenadas de mosaico (con decimales) en la proyección de los mapas web."""
     n = 2 ** zoom
@@ -77,13 +72,12 @@ def a_mosaico(lon, lat, zoom):
     y = (1.0 - math.asinh(math.tan(rad)) / math.pi) / 2.0 * n
     return x, y
 
-
 def main():
     from PIL import Image
 
     marco = recuadro_urbano()
-    x0, y0 = a_mosaico(marco['oeste'], marco['norte'], ZOOM)   # esquina superior izquierda
-    x1, y1 = a_mosaico(marco['este'], marco['sur'], ZOOM)      # inferior derecha
+    x0, y0 = a_mosaico(marco['oeste'], marco['norte'], ZOOM)
+    x1, y1 = a_mosaico(marco['este'], marco['sur'], ZOOM)
 
     xi0, yi0 = math.floor(x0), math.floor(y0)
     xi1, yi1 = math.ceil(x1), math.ceil(y1)
@@ -101,10 +95,9 @@ def main():
                 from io import BytesIO
                 mosaico = Image.open(BytesIO(respuesta.read())).convert('RGB')
             lienzo.paste(mosaico, ((cx - xi0) * 256, (cy - yi0) * 256))
-            time.sleep(0.15)   # sin prisa: son los servidores de una organización sin fines de lucro
+            time.sleep(0.15)
         print(f'  columna {cx - xi0 + 1}/{columnas}')
 
-    # Recorte al recuadro exacto, para que la imagen y los polígonos coincidan.
     izquierda = (x0 - xi0) * 256
     arriba = (y0 - yi0) * 256
     derecha = (x1 - xi0) * 256
@@ -126,7 +119,6 @@ def main():
 
     print(f'imagen: {SALIDA_IMAGEN.name}  {final.width}×{final.height}  '
           f'{SALIDA_IMAGEN.stat().st_size / 1000:.0f} KB')
-
 
 if __name__ == '__main__':
     main()

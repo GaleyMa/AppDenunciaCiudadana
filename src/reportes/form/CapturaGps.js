@@ -1,16 +1,8 @@
-// src/reportes/form/CapturaGps.js — ubicación del dispositivo.
-//
-// La HT-01 original pedía "GPS + respaldo manual" y quedó pendiente. El GPS es
-// lo que permite ubicar el reporte en el mapa del tablero: el servidor deriva
-// el código postal a partir de las coordenadas.
-//
-// Es OPCIONAL a propósito. Si la persona no da permiso, el reporte se guarda
-// igual con el texto de la colonia; solo no aparecerá en el mapa.
 
 const OPCIONES = {
     enableHighAccuracy: true,
     timeout: 12000,
-    maximumAge: 60000, // una lectura de hace un minuto sirve
+    maximumAge: 60000,
 };
 
 /** Mensajes claros: "código 1" no le dice nada a nadie. */

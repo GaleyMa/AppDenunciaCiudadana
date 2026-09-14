@@ -1,11 +1,3 @@
-// src/reportes/sync/SincronizadorReportes.js — cola de envío al servidor.
-//
-// La app sigue siendo offline-first: el reporte SIEMPRE se guarda primero en
-// IndexedDB y se marca como no sincronizado. Este módulo lo empuja a Supabase
-// cuando hay conexión, y reintenta después si no la hubo.
-//
-// El servidor acepta el mismo id que generó el cliente y la operación es
-// idempotente, así que reintentar nunca duplica un reporte.
 
 import { rpc, seleccionar, subirFoto, hayConexion } from '../api/SupabaseApi.js';
 
@@ -21,16 +13,13 @@ export default class SincronizadorReportes {
     constructor(store) {
         this.store = store;
         this.enCurso = false;
-        this.colonias = null; // se pide una vez por sesión
+        this.colonias = null;
     }
 
     /** Catálogo de colonias del servidor, para traducir el texto a colonia_id. */
     async #obtenerColonias() {
         if (this.colonias) return this.colonias;
 
-        // Mientras la migración del catálogo no esté aplicada, la columna
-        // codigo_postal no existe y el servidor responde 42703. Se reintenta
-        // sin ella para que la sincronización no se detenga por eso.
         let filas;
         try {
             filas = await seleccionar('colonias', { columnas: 'id,nombre,codigo_postal', limite: 2000 });
@@ -111,8 +100,8 @@ export default class SincronizadorReportes {
      * perderlo. Si el fallo es de red, se propaga para reintentar después.
      */
     async #subirFotoDe(reporte) {
-        if (reporte.fotoRuta) return reporte.fotoRuta;         // ya estaba subida
-        if (!(reporte.foto instanceof Blob)) return null;      // reporte sin foto
+        if (reporte.fotoRuta) return reporte.fotoRuta;
+        if (!(reporte.foto instanceof Blob)) return null;
 
         const extension = EXTENSIONES[reporte.foto.type] ?? 'bin';
         const ruta = `${reporte.id}.${extension}`;
@@ -127,8 +116,6 @@ export default class SincronizadorReportes {
             throw error;
         }
 
-        // Se recuerda la ruta: si el alta del reporte falla, el reintento no
-        // vuelve a subir la imagen.
         await this.store.updateReport(reporte.id, { fotoRuta: ruta });
         return ruta;
     }
@@ -170,8 +157,6 @@ export default class SincronizadorReportes {
                     });
                     enviados += 1;
                 } catch (error) {
-                    // Un fallo suele ser de red: si se cayó uno, se caerán los
-                    // demás. Se corta y se reintenta en la próxima oportunidad.
                     console.warn('No se pudo sincronizar el reporte', reporte.id, error.message);
                     return { enviados, pendientes: porEnviar.length - enviados, error: error.message };
                 }
@@ -205,12 +190,10 @@ export default class SincronizadorReportes {
                 if (!ruta) continue;
 
                 const adjuntada = await rpc('adjuntar_foto', { p_id: reporte.id, p_foto_ruta: ruta });
-                // Si el servidor dice que no (ya tenía foto, o ya fue moderado),
-                // no se vuelve a intentar: la marca local evita el bucle.
                 if (!adjuntada) await this.store.updateReport(reporte.id, { fotoRuta: ruta });
             } catch (error) {
                 console.warn('No se pudo adjuntar la foto de', reporte.id, error.message);
-                return; // suele ser de red: se reintenta en la próxima vuelta
+                return;
             }
         }
     }

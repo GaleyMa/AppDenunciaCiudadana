@@ -1,11 +1,3 @@
-// src/reportes/tablero/TableroPublico.js — tablero público de estadísticas.
-//
-// Lee SOLO agregados del servidor: conteos por colonia, por categoría, por
-// semana y por código postal. Nunca pide reportes individuales, porque la API
-// no los expone — el anonimato no depende de que esta pantalla se porte bien.
-//
-// Offline-first: guarda la última respuesta y la muestra, fechada, cuando no
-// hay conexión.
 
 import { seleccionar } from '../api/SupabaseApi.js';
 import { etiquetaCategoria } from '../datos/categorias.js';
@@ -31,7 +23,6 @@ const crear = (etiqueta, clase, contenido) => {
 
 const fechaCorta = (iso) => {
     const fecha = new Date(`${iso}T12:00:00`);
-    // Antes de rendirse, el texto crudo dice más que "Invalid Date".
     if (Number.isNaN(fecha.getTime())) return String(iso);
     return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 };
@@ -44,7 +35,6 @@ async function pedirDatos() {
         seleccionar('top_colonias'),
         seleccionar('serie_semanal', { orden: 'semana.asc' }),
         seleccionar('estadisticas_por_cp', { columnas: 'codigo_postal,validados,reporte_mas_reciente' })
-            // Si el proyecto aún no tiene la columna nueva, se pide sin ella.
             .catch(() => seleccionar('estadisticas_por_cp', { columnas: 'codigo_postal,validados' })),
         seleccionar('estadisticas_por_cp_categoria', { limite: 2000 }).catch(() => []),
     ]);
@@ -59,7 +49,6 @@ function guardarEnCache(datos) {
     try {
         localStorage.setItem(CACHE, JSON.stringify(datos));
     } catch {
-        // Sin espacio o en modo privado: el tablero funciona igual en línea.
     }
 }
 
@@ -84,8 +73,6 @@ function tarjetasResumen(resumen) {
     const rejilla = crear('div', 'tarjetas');
     for (const [rotulo, valor] of datos) {
         const tarjeta = crear('div', 'tarjeta-dato');
-        // Una etiqueta de categoría no es una cifra: con el tamaño de número
-        // ocupa tres renglones y descuadra la rejilla.
         const clase = typeof valor === 'number' ? 'dato-valor' : 'dato-valor dato-texto';
         tarjeta.appendChild(crear('p', clase, String(valor)));
         tarjeta.appendChild(crear('p', 'dato-rotulo', rotulo));
@@ -172,8 +159,6 @@ function tablaCodigos(codigos, alElegir = null) {
         tr.appendChild(crear('td', null, String(fila.codigo_postal)));
         tr.appendChild(crear('td', 'numero', String(fila.validados)));
 
-        // La tabla también selecciona la zona: es la vía accesible con teclado,
-        // porque los polígonos del mapa no son enfocables.
         if (alElegir) {
             tr.tabIndex = 0;
             tr.className = 'fila-elegible';
@@ -222,16 +207,11 @@ export default function initTableroPublico(contenedor) {
     let fondoMapa = null;
 
     async function obtenerGeojson() {
-        // Se piden solo al abrir el tablero: son cientos de KB que no tienen
-        // por qué pesar en quien únicamente va a levantar un reporte.
         if (!geojson) geojson = await (await fetch(RUTA_GEOJSON)).json();
         return geojson;
     }
 
     async function obtenerFondo() {
-        // Mapa base de OpenStreetMap, exportado una sola vez como imagen (ver
-        // herramientas/generar-mapa-base.py). Si no carga, el coroplético se
-        // dibuja igual, solo que sin calles debajo.
         if (fondoMapa === null) {
             fondoMapa = await fetch(RUTA_MARCO_MAPA)
                 .then((r) => r.json())
@@ -257,10 +237,7 @@ export default function initTableroPublico(contenedor) {
 
         contenedor.appendChild(tarjetasResumen(datos.resumen));
 
-        // ── Mapa ──
         const valores = new Map(datos.codigos.map((c) => [c.codigo_postal, c.validados]));
-        // En escritorio, mapa y gráficas se reparten en dos columnas; en
-        // celular la rejilla colapsa sola a una sola columna.
         const rejilla = crear('div', 'rejilla');
 
         const bloqueMapa = seccion('Dónde se concentran');
@@ -278,28 +255,21 @@ export default function initTableroPublico(contenedor) {
             });
             marcarZona = marcar;
 
-            // El mapa se dibuja completo y se recorre dentro de su marco.
-            // Encogerlo para que cupiera entero dejaba las colonias del centro
-            // del tamaño de un punto, y recortarlo dejaba fuera media ciudad.
             const marco = crear('div', 'mapa-marco');
             marco.appendChild(svg);
             const aviso = crear('p', 'nota-mapa', 'Desliza el mapa para recorrer la ciudad.');
             aviso.hidden = true;
             bloqueMapa.append(marco, aviso, leyendaMapa(cortes), hueco);
 
-            // Atribución obligatoria del mapa base.
             if (fondo?.atribucion) {
                 bloqueMapa.appendChild(crear('p', 'atribucion',
                     `Mapa base: ${fondo.atribucion} (CC BY-SA)`));
             }
 
             requestAnimationFrame(() => {
-                // Se abre mirando al centro de Mexicali, no a una esquina del valle.
                 marco.scrollLeft = Math.max(0, centro.x - marco.clientWidth / 2);
                 marco.scrollTop = Math.max(0, centro.y - marco.clientHeight / 2);
 
-                // El aviso solo tiene sentido si de verdad hay a dónde deslizar:
-                // en una pantalla ancha el mapa cabe entero.
                 aviso.hidden = marco.scrollWidth <= marco.clientWidth
                     && marco.scrollHeight <= marco.clientHeight;
             });
@@ -319,7 +289,6 @@ export default function initTableroPublico(contenedor) {
         rejilla.appendChild(bloqueMapa);
         contenedor.appendChild(rejilla);
 
-        // ── Categorías ──
         const porCategoria = datos.categorias.map((c) => ({
             etiqueta: etiquetaCategoria(c.categoria), valor: c.validados,
         }));
@@ -328,7 +297,6 @@ export default function initTableroPublico(contenedor) {
                 ? barrasHorizontales(porCategoria)
                 : crear('p', 'sin-datos', 'Aún no hay reportes validados.')));
 
-        // ── Serie semanal ──
         const porSemana = datos.semanas.map((s) => ({
             etiqueta: fechaCorta(s.semana), valor: s.validados,
         }));
@@ -337,7 +305,6 @@ export default function initTableroPublico(contenedor) {
                 ? serieTemporal(porSemana)
                 : crear('p', 'sin-datos', 'Todavía no hay suficientes semanas con datos.')));
 
-        // ── Top 5 ──
         rejilla.appendChild(seccion('Colonias con más reportes', tablaColonias(datos.colonias)));
 
         const pie = crear('footer', 'panel-pie');
